@@ -1,0 +1,14 @@
+{
+  "name": "tts-benchmark",
+  "version": "1.0.0",
+  "description": "TTS latency benchmark — TTFA and RTF across Deepgram, ElevenLabs, Cartesia, Rime",
+  "main": "benchmark.js",
+  "scripts": {
+    "benchmark": "node benchmark.js",
+    "benchmark:publish": "node benchmark.js --mode publish"
+  },
+  "dependencies": {
+    "ws": "^8.14.2",
+    "dotenv": "^16.3.1"
+  }
+}
