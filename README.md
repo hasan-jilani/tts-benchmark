@@ -11,6 +11,19 @@ Latency benchmark for Text-to-Speech providers, measuring **TTFA** (Time to Firs
 | Cartesia Sonic | 1 |
 | Rime Mist v2 | 2 (norm on/off) |
 
+## Prerequisites
+
+You need your own API keys for each provider you want to benchmark. No keys are included in this repo.
+
+| Provider | Get a key at |
+|---|---|
+| Deepgram | https://console.deepgram.com |
+| ElevenLabs | https://elevenlabs.io |
+| Cartesia | https://cartesia.ai |
+| Rime | https://rime.ai |
+
+You can run a subset of providers with `--providers` if you don't have keys for all of them.
+
 ## Quick Start
 
 ```bash
