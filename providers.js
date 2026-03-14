@@ -149,6 +149,64 @@ function benchmarkElevenLabs(text, { apiKey, voice = 'EXAVITQu4vr4xnSDxMaL', mod
 }
 
 // ============================================================
+// ElevenLabs v3 (HTTP streaming — v3 does not support WebSocket)
+// ============================================================
+function benchmarkElevenLabsHTTP(text, { apiKey, voice = 'EXAVITQu4vr4xnSDxMaL', model = 'eleven_v3' }) {
+  return new Promise((resolve, reject) => {
+    const fmt = AUDIO_FORMATS.elevenlabs;
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voice}/stream?output_format=${fmt.encoding}`;
+
+    const startTime = Date.now();
+    let ttfa = null, totalBytes = 0;
+
+    const body = JSON.stringify({
+      text,
+      model_id: model,
+      voice_settings: { speed: 0.8, stability: 0.75, similarity_boost: 0.75 },
+    });
+
+    const https = require('https');
+    const req = https.request(url, {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json',
+      },
+    }, (res) => {
+      if (res.statusCode !== 200) {
+        reject(new Error(`ElevenLabs HTTP ${res.statusCode}`));
+        return;
+      }
+
+      res.on('data', (chunk) => {
+        if (ttfa === null) ttfa = Date.now() - startTime;
+        totalBytes += chunk.length;
+      });
+
+      res.on('end', () => {
+        const totalTime = Date.now() - startTime;
+        resolve({
+          ttfa,
+          totalTime,
+          totalBytes,
+          audioDuration: audioDurationMs(totalBytes, fmt),
+          rtf: totalTime / audioDurationMs(totalBytes, fmt),
+        });
+      });
+
+      res.on('error', reject);
+    });
+
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+
+    // Safety timeout
+    setTimeout(() => { req.destroy(); reject(new Error('ElevenLabs HTTP timeout')); }, 30000);
+  });
+}
+
+// ============================================================
 // Cartesia Sonic
 // ============================================================
 function benchmarkCartesia(text, { apiKey, voice = 'f786b574-daa5-4673-aa0c-cbe3e8534c02', model = 'sonic-turbo' }) {
@@ -292,8 +350,8 @@ function getConfigurations(env) {
     // ElevenLabs Turbo v2.5 removed — not recommended by ElevenLabs. Historical data in results CSVs.
     {
       id: 'elevenlabs-v3',
-      label: 'ElevenLabs v3',
-      fn: benchmarkElevenLabs,
+      label: 'ElevenLabs v3 (HTTP)',
+      fn: benchmarkElevenLabsHTTP,
       opts: { apiKey: env.ELEVENLABS_API_KEY, model: 'eleven_v3' },
     },
     {
