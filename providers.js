@@ -314,6 +314,12 @@ function getConfigurations(env) {
       opts: { apiKey: env.CARTESIA_API_KEY, model: 'sonic-turbo' },
     },
     {
+      id: 'cartesia-sonic-3',
+      label: 'Cartesia Sonic 3',
+      fn: benchmarkCartesia,
+      opts: { apiKey: env.CARTESIA_API_KEY, model: 'sonic-3' },
+    },
+    {
       id: 'cartesia-sonic-2',
       label: 'Cartesia Sonic 2',
       fn: benchmarkCartesia,
