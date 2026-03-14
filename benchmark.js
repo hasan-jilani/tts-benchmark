@@ -11,6 +11,7 @@
  *   node benchmark.js --prompts 1,2,3  # Run specific prompt IDs only
  *   node benchmark.js --append results/2026-03-14T13-08-26 --providers rime-mistv2-norm-on
  *   node benchmark.js --append results/... --iterations 30 --providers elevenlabs-flash-v2.5
+ *   node benchmark.js --append results/... --target 50   # auto-calculates remaining runs
  */
 require('dotenv').config();
 
@@ -29,10 +30,20 @@ function getArg(name, fallback) {
 
 const MODE = getArg('mode', 'internal');
 const iterationsOverride = getArg('iterations', null);
+const targetOverride = getArg('target', null);
 const WARMUP = MODE === 'publish' ? 5 : 2;
-// When --iterations is set, add warmup automatically so user gets exactly N kept runs
-const ITERATIONS = iterationsOverride ? (parseInt(iterationsOverride) + WARMUP) : (MODE === 'publish' ? 50 : 20);
-const KEPT = ITERATIONS - WARMUP;
+// --target: "I want 50 total kept runs" — auto-calculates how many more to run
+// --iterations: "Run exactly N more kept runs"
+// Neither: use mode defaults
+let ITERATIONS, KEPT;
+if (targetOverride || iterationsOverride) {
+  // Will be resolved per-provider in run() when --target + --append is used
+  ITERATIONS = iterationsOverride ? (parseInt(iterationsOverride) + WARMUP) : (MODE === 'publish' ? 50 : 20);
+  KEPT = ITERATIONS - WARMUP;
+} else {
+  ITERATIONS = MODE === 'publish' ? 50 : 20;
+  KEPT = ITERATIONS - WARMUP;
+}
 const DELAY_BETWEEN_REQUESTS_MS = 500;  // avoid rate limiting
 const DELAY_BETWEEN_PROVIDERS_MS = 2000;
 
@@ -89,12 +100,6 @@ async function run() {
     }
   }
 
-  log(`TTS Benchmark — ${MODE} mode`);
-  log(`${ITERATIONS} iterations per prompt (${WARMUP} warmup, ${KEPT} kept)`);
-  log(`${activeConfigs.length} providers × ${activePrompts.length} prompts`);
-  log(`Output: ${outputDir}`);
-  console.log('');
-
   // Raw results CSV — append if file exists, otherwise create with headers
   const rawCsvPath = path.join(outputDir, 'raw.csv');
   const csvHeaders = 'provider,provider_label,prompt_id,category,text_length,iteration,is_warmup,ttfa_ms,rtf,total_time_ms,audio_duration_ms,total_bytes,error,timestamp\n';
@@ -104,13 +109,39 @@ async function run() {
     fs.writeFileSync(rawCsvPath, csvHeaders);
   }
 
+  // If --target is set with --append, calculate how many more kept runs are needed per provider
+  let perProviderIterations = {};
+  if (targetOverride && appendDir && fs.existsSync(rawCsvPath)) {
+    const target = parseInt(targetOverride);
+    const existing = parseExistingKeptCounts(rawCsvPath);
+    for (const config of activeConfigs) {
+      const have = existing[config.id] || 0;
+      const need = Math.max(0, target - have);
+      perProviderIterations[config.id] = need + WARMUP;
+      log(`${config.label}: have ${have} kept, need ${need} more (+ ${WARMUP} warmup)`);
+    }
+  }
+
+  log(`TTS Benchmark — ${MODE} mode`);
+  if (!targetOverride) {
+    log(`${ITERATIONS} iterations per prompt (${WARMUP} warmup, ${KEPT} kept)`);
+  }
+  log(`${activeConfigs.length} providers × ${activePrompts.length} prompts`);
+  log(`Output: ${outputDir}`);
+  console.log('');
+
   const allResults = [];
 
   for (const config of activeConfigs) {
-    log(`▸ ${config.label}`);
+    const providerIters = perProviderIterations[config.id] || ITERATIONS;
+    if (targetOverride && providerIters <= WARMUP) {
+      log(`▸ ${config.label} — already at target, skipping`);
+      continue;
+    }
+    log(`▸ ${config.label}` + (targetOverride ? ` (${providerIters - WARMUP} kept + ${WARMUP} warmup)` : ''));
 
     for (const prompt of activePrompts) {
-      for (let i = 1; i <= ITERATIONS; i++) {
+      for (let i = 1; i <= providerIters; i++) {
         const isWarmup = i <= WARMUP;
         let result = null;
         let error = null;
@@ -183,6 +214,39 @@ async function run() {
   }
 
   log(`Done. Results in ${outputDir}`);
+}
+
+function parseExistingKeptCounts(csvPath) {
+  const lines = fs.readFileSync(csvPath, 'utf-8').trim().split('\n').slice(1);
+  const counts = {};
+  for (const line of lines) {
+    const parts = []; let current = '', inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') { inQuotes = !inQuotes; continue; }
+      if (ch === ',' && !inQuotes) { parts.push(current); current = ''; continue; }
+      current += ch;
+    }
+    parts.push(current);
+    const provider = parts[0];
+    const isWarmup = parts[6] === 'true';
+    const totalBytes = parseInt(parts[11]) || 0;
+    const error = parts[12] || null;
+    if (isWarmup || totalBytes === 0 || error) continue;
+    // Count per provider (not per prompt — we want the min across prompts)
+    const promptId = parts[2];
+    const key = `${provider}__${promptId}`;
+    if (!counts[key]) counts[key] = 0;
+    counts[key]++;
+  }
+  // Return min kept count per prompt for each provider
+  const result = {};
+  for (const [key, count] of Object.entries(counts)) {
+    const provider = key.split('__')[0];
+    if (!(provider in result) || count < result[provider]) {
+      result[provider] = count;
+    }
+  }
+  return result;
 }
 
 function parseRawCsv(csvPath) {
