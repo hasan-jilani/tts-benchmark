@@ -10,6 +10,7 @@
  *   node benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
  *   node benchmark.js --prompts 1,2,3  # Run specific prompt IDs only
  *   node benchmark.js --append results/2026-03-14T13-08-26 --providers rime-mistv2-norm-on
+ *   node benchmark.js --append results/... --iterations 30 --providers elevenlabs-flash-v2.5
  */
 require('dotenv').config();
 
@@ -27,8 +28,9 @@ function getArg(name, fallback) {
 }
 
 const MODE = getArg('mode', 'internal');
-const ITERATIONS = MODE === 'publish' ? 50 : 20;
-const WARMUP = MODE === 'publish' ? 5 : 2;
+const iterationsOverride = getArg('iterations', null);
+const ITERATIONS = iterationsOverride ? parseInt(iterationsOverride) : (MODE === 'publish' ? 50 : 20);
+const WARMUP = iterationsOverride ? 0 : (MODE === 'publish' ? 5 : 2);
 const KEPT = ITERATIONS - WARMUP;
 const DELAY_BETWEEN_REQUESTS_MS = 500;  // avoid rate limiting
 const DELAY_BETWEEN_PROVIDERS_MS = 2000;
@@ -154,7 +156,7 @@ async function run() {
         ].join(',');
         fs.appendFileSync(rawCsvPath, csvLine + '\n');
 
-        if (!isWarmup) allResults.push(row);
+        if (!isWarmup && (row.totalBytes ?? 0) > 0) allResults.push(row);
 
         logProgress(config.label, prompt.id, i, ITERATIONS, row.ttfa, row.rtf, error);
 
@@ -202,6 +204,9 @@ function parseRawCsv(csvPath) {
     const error = parts[12] || null;
     if (error) continue; // skip error rows
 
+    const totalBytes = parts[11] ? parseInt(parts[11]) : 0;
+    if (totalBytes === 0) continue; // skip 0-byte rows (quota exhausted, no audio returned)
+
     results.push({
       provider: parts[0],
       provider_label: parts[1],
@@ -219,8 +224,8 @@ function generateSummary(results, outDir) {
   for (const r of results) {
     if (r.error) continue;
     if (!byProvider[r.provider]) byProvider[r.provider] = { label: r.provider_label, ttfas: [], rtfs: [] };
-    if (r.ttfa !== null) byProvider[r.provider].ttfas.push(r.ttfa);
-    if (r.rtf !== null) byProvider[r.provider].rtfs.push(r.rtf);
+    if (r.ttfa !== null && r.ttfa > 0) byProvider[r.provider].ttfas.push(r.ttfa);
+    if (r.rtf !== null && isFinite(r.rtf)) byProvider[r.provider].rtfs.push(r.rtf);
   }
 
   // Summary CSV
