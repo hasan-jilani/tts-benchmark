@@ -289,11 +289,12 @@ function getConfigurations(env) {
       fn: benchmarkElevenLabs,
       opts: { apiKey: env.ELEVENLABS_API_KEY, model: 'eleven_flash_v2_5' },
     },
+    // ElevenLabs Turbo v2.5 removed — not recommended by ElevenLabs. Historical data in results CSVs.
     {
-      id: 'elevenlabs-turbo-v2.5',
-      label: 'ElevenLabs Turbo v2.5',
+      id: 'elevenlabs-v3',
+      label: 'ElevenLabs v3',
       fn: benchmarkElevenLabs,
-      opts: { apiKey: env.ELEVENLABS_API_KEY, model: 'eleven_turbo_v2_5' },
+      opts: { apiKey: env.ELEVENLABS_API_KEY, model: 'eleven_v3' },
     },
     {
       id: 'elevenlabs-multilingual-v2-norm-on',

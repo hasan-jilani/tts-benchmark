@@ -5,11 +5,11 @@
  * across Deepgram, ElevenLabs, Cartesia, and Rime.
  *
  * Usage:
- *   node benchmark.js                  # Internal mode (20 iterations, 2 warmup)
- *   node benchmark.js --mode publish   # Publish mode (50 iterations, 5 warmup)
+ *   node benchmark.js --all                              # Run all providers
  *   node benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
- *   node benchmark.js --prompts 1,2,3  # Run specific prompt IDs only
- *   node benchmark.js --append results/2026-03-14T13-08-26 --providers rime-mistv2-norm-on
+ *   node benchmark.js --all --mode publish               # Publish mode (50 iterations)
+ *   node benchmark.js --providers deepgram-aura2 --prompts 1,2,3
+ *   node benchmark.js --append results/... --providers rime-mistv2-norm-on
  *   node benchmark.js --append results/... --iterations 30 --providers elevenlabs-flash-v2.5
  *   node benchmark.js --append results/... --target 50   # auto-calculates remaining runs
  */
@@ -49,8 +49,23 @@ const DELAY_BETWEEN_PROVIDERS_MS = 2000;
 
 // Optional filters
 const providerFilter = getArg('providers', null)?.split(',');
+const runAll = args.includes('--all');
 const promptFilter = getArg('prompts', null)?.split(',').map(Number);
 const appendDir = getArg('append', null);
+
+// Require --providers or --all (unless appending with --target, which auto-selects)
+if (!providerFilter && !runAll && !appendDir) {
+  console.error('Error: specify --providers <list> or --all to run the benchmark.');
+  console.error('');
+  console.error('  node benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5');
+  console.error('  node benchmark.js --all');
+  console.error('');
+  const { getConfigurations } = require('./providers');
+  const configs = getConfigurations(process.env);
+  console.error('Available providers:');
+  configs.forEach(c => console.error('  ' + c.id));
+  process.exit(1);
+}
 
 // --- Output directory ---
 let outputDir;
