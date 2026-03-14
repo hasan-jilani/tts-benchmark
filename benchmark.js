@@ -31,7 +31,7 @@ function getArg(name, fallback) {
 const MODE = getArg('mode', 'internal');
 const iterationsOverride = getArg('iterations', null);
 const targetOverride = getArg('target', null);
-const WARMUP = MODE === 'publish' ? 5 : 2;
+const WARMUP = 2;
 // --target: "I want 50 total kept runs" — auto-calculates how many more to run
 // --iterations: "Run exactly N more kept runs"
 // Neither: use mode defaults
