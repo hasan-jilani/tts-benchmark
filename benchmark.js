@@ -146,10 +146,23 @@ async function run() {
         let result = null;
         let error = null;
 
-        try {
-          result = await config.fn(prompt.text, config.opts);
-        } catch (err) {
-          error = err.message || String(err);
+        // Retry with exponential backoff on 429
+        const MAX_RETRIES = 3;
+        for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            result = await config.fn(prompt.text, config.opts);
+            break; // success
+          } catch (err) {
+            const is429 = err.message && err.message.includes('429');
+            if (is429 && attempt < MAX_RETRIES) {
+              const backoff = Math.pow(2, attempt + 1) * 1000; // 2s, 4s, 8s
+              console.log(`    ⏳ Rate limited, retrying in ${backoff / 1000}s (attempt ${attempt + 2}/${MAX_RETRIES + 1})`);
+              await sleep(backoff);
+              continue;
+            }
+            error = err.message || String(err);
+            break;
+          }
         }
 
         const row = {
