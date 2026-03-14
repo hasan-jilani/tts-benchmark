@@ -151,7 +151,7 @@ function benchmarkElevenLabs(text, { apiKey, voice = 'EXAVITQu4vr4xnSDxMaL', mod
 // ============================================================
 // Cartesia Sonic
 // ============================================================
-function benchmarkCartesia(text, { apiKey, voice = 'f786b574-daa5-4673-aa0c-cbe3e8534c02', model = 'sonic-2' }) {
+function benchmarkCartesia(text, { apiKey, voice = 'f786b574-daa5-4673-aa0c-cbe3e8534c02', model = 'sonic-turbo' }) {
   return new Promise((resolve, reject) => {
     const fmt = AUDIO_FORMATS.cartesia;
     const url = 'wss://api.cartesia.ai/tts/websocket';
@@ -308,10 +308,16 @@ function getConfigurations(env) {
       opts: { apiKey: env.ELEVENLABS_API_KEY, model: 'eleven_multilingual_v2', textNormalization: 'off' },
     },
     {
-      id: 'cartesia-sonic',
-      label: 'Cartesia Sonic',
+      id: 'cartesia-sonic-turbo',
+      label: 'Cartesia Sonic Turbo',
       fn: benchmarkCartesia,
-      opts: { apiKey: env.CARTESIA_API_KEY },
+      opts: { apiKey: env.CARTESIA_API_KEY, model: 'sonic-turbo' },
+    },
+    {
+      id: 'cartesia-sonic-2',
+      label: 'Cartesia Sonic 2',
+      fn: benchmarkCartesia,
+      opts: { apiKey: env.CARTESIA_API_KEY, model: 'sonic-2' },
     },
     {
       id: 'rime-mistv2-norm-on',
