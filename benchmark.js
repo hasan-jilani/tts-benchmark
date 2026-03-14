@@ -30,7 +30,7 @@ function getArg(name, fallback) {
 const MODE = getArg('mode', 'internal');
 const iterationsOverride = getArg('iterations', null);
 const ITERATIONS = iterationsOverride ? parseInt(iterationsOverride) : (MODE === 'publish' ? 50 : 20);
-const WARMUP = iterationsOverride ? 0 : (MODE === 'publish' ? 5 : 2);
+const WARMUP = MODE === 'publish' ? 5 : 2;
 const KEPT = ITERATIONS - WARMUP;
 const DELAY_BETWEEN_REQUESTS_MS = 500;  // avoid rate limiting
 const DELAY_BETWEEN_PROVIDERS_MS = 2000;
