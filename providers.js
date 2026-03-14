@@ -22,10 +22,11 @@ function audioDurationMs(totalBytes, format) {
 // ============================================================
 // Deepgram Aura-2
 // ============================================================
-function benchmarkDeepgram(text, { apiKey, voice = 'aura-2-thalia-en' }) {
+function benchmarkDeepgram(text, { apiKey, voice = 'aura-2-thalia-en', baseUrl = null }) {
   return new Promise((resolve, reject) => {
     const fmt = AUDIO_FORMATS.deepgram;
-    const url = `wss://api.deepgram.com/v1/speak?model=${voice}&encoding=${fmt.encoding}&sample_rate=${fmt.sampleRate}`;
+    const base = baseUrl || 'wss://api.deepgram.com/v1/speak';
+    const url = `${base}?model=${voice}&encoding=${fmt.encoding}&sample_rate=${fmt.sampleRate}`;
     const ws = new WebSocket(url, ['token', apiKey]);
 
     let startTime, ttfa = null, totalBytes = 0, done = false;
@@ -280,7 +281,7 @@ function getConfigurations(env) {
       id: 'deepgram-aura2',
       label: 'Deepgram Aura-2',
       fn: benchmarkDeepgram,
-      opts: { apiKey: env.DEEPGRAM_API_KEY, voice: 'aura-2-thalia-en' },
+      opts: { apiKey: env.DEEPGRAM_API_KEY, voice: 'aura-2-thalia-en', baseUrl: env.DEEPGRAM_BASE_URL || null },
     },
     {
       id: 'elevenlabs-flash-v2.5',

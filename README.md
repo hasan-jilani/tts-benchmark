@@ -69,6 +69,20 @@ Each run creates a timestamped directory under `results/`:
 | `summary.csv` | Aggregated stats per provider (mean, median, p95, p99, stdev) |
 | `summary.md` | Formatted ranking tables |
 
+## Self-Hosted / Internal Deepgram
+
+To benchmark a self-hosted Deepgram instance, set the base URL in `.env`:
+
+```
+DEEPGRAM_BASE_URL=wss://your-internal-instance.deepgram.com/v1/speak
+```
+
+If not set, defaults to the public Deepgram API. All other flags work the same:
+
+```bash
+node benchmark.js --providers deepgram-aura2
+```
+
 ## Metrics
 
 - **TTFA (Time to First Audio)** — milliseconds from request to first audio chunk. What users perceive as latency.
