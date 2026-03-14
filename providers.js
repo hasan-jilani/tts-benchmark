@@ -37,8 +37,6 @@ function benchmarkDeepgram(text, { apiKey, voice = 'aura-2-thalia-en', baseUrl =
       ws.send(JSON.stringify({ type: 'Flush' }));
     });
 
-    let finalResult = null;
-
     ws.on('message', (data, isBinary) => {
       if (isBinary) {
         if (ttfa === null) ttfa = Date.now() - startTime;
@@ -48,23 +46,21 @@ function benchmarkDeepgram(text, { apiKey, voice = 'aura-2-thalia-en', baseUrl =
         if (msg.type === 'Flushed' && !done) {
           done = true;
           const totalTime = Date.now() - startTime;
-          finalResult = {
+          ws.terminate(); // force-close immediately, don't wait for server
+          resolve({
             ttfa,
             totalTime,
             totalBytes,
             audioDuration: audioDurationMs(totalBytes, fmt),
             rtf: totalTime / audioDurationMs(totalBytes, fmt),
-          };
-          ws.close(); // resolve on 'close' event, not here
+          });
         }
       }
     });
 
-    ws.on('error', (err) => { if (!done) { done = true; ws.close(); reject(err); } });
+    ws.on('error', (err) => { if (!done) { done = true; reject(err); } });
     ws.on('close', () => {
-      if (finalResult) {
-        resolve(finalResult);
-      } else if (!done) {
+      if (!done) {
         done = true;
         const totalTime = Date.now() - startTime;
         resolve({
