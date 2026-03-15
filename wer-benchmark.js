@@ -255,7 +255,7 @@ async function run() {
   log(`TTS WER Benchmark`);
   // CSV header
   const csvPath = path.join(outputDir, 'wer-raw.csv');
-  const csvHeaders = 'provider,provider_label,prompt_id,category,subcategory,iteration,original,transcript,compare_method,match,word_accuracy,mismatched_words,notes,error,timestamp\n';
+  const csvHeaders = 'provider,provider_label,prompt_id,category,subcategory,iteration,original,transcript,compare_method,match,word_accuracy,severity,mismatched_words,notes,error,timestamp\n';
   if (!fs.existsSync(csvPath)) {
     fs.writeFileSync(csvPath, csvHeaders);
   }
@@ -387,6 +387,7 @@ async function run() {
               method,
               comparison.match ?? false,
               comparison.word_accuracy ?? 0,
+              comparison.match ? 'none' : (comparison.severity || 'critical'),
               `"${JSON.stringify(comparison.mismatched_words || []).replace(/"/g, '""')}"`,
               `"${(comparison.notes || '').replace(/"/g, '""')}"`,
               comparison.error ? `"${comparison.error}"` : '',
@@ -437,6 +438,7 @@ async function run() {
             compareMethod,
             false,
             0,
+            'error',
             '',
             '',
             `"${(error || 'unknown').replace(/"/g, '""')}"`,
