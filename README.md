@@ -1,97 +1,88 @@
 # TTS Benchmark
 
-Latency benchmark for Text-to-Speech providers, measuring **TTFA** (Time to First Audio) and **RTF** (Real-Time Factor) across Deepgram, ElevenLabs, Cartesia, and Rime.
+Latency and pronunciation accuracy benchmarks for Text-to-Speech providers across Deepgram, ElevenLabs, Cartesia, Rime, and OpenAI.
 
-## Providers Tested
+## Two Benchmarks
 
-| Provider | Configs |
-|---|---|
-| Deepgram Aura-2 | 1 |
-| ElevenLabs | 4 (Flash v2.5, Turbo v2.5, Multilingual v2 norm on/off) |
-| Cartesia Sonic | 1 |
-| Rime Mist v2 | 2 (norm on/off) |
+| Benchmark | Script | What it measures |
+|---|---|---|
+| **Latency** | `latency-benchmark.js` | TTFA (Time to First Audio) — how fast audio starts |
+| **WER** | `wer-benchmark.js` | Pronunciation accuracy — does the TTS say the words correctly |
 
 ## Prerequisites
 
-You need your own API keys for each provider you want to benchmark. No keys are included in this repo.
+API keys for each provider you want to benchmark. No keys are included in this repo.
 
-| Provider | Get a key at |
-|---|---|
-| Deepgram | https://console.deepgram.com |
-| ElevenLabs | https://elevenlabs.io |
-| Cartesia | https://cartesia.ai |
-| Rime | https://rime.ai |
+| Key | Used by | Get it at |
+|---|---|---|
+| `DEEPGRAM_API_KEY` | Latency + WER (TTS and STT) | https://console.deepgram.com |
+| `ELEVENLABS_API_KEY` | Latency + WER | https://elevenlabs.io |
+| `CARTESIA_API_KEY` | Latency + WER | https://cartesia.ai |
+| `RIME_API_KEY` | Latency + WER | https://rime.ai |
+| `OPENAI_API_KEY` | Latency + WER | https://platform.openai.com |
+| `ANTHROPIC_API_KEY` | WER only (Haiku for pronunciation evaluation) | https://console.anthropic.com |
 
 You can run a subset of providers with `--providers` if you don't have keys for all of them.
 
 ## Quick Start
 
 ```bash
-# Install
 npm install
+cp .env.example .env   # Add your API keys
 
-# Copy .env.example to .env and add your API keys
-cp .env.example .env
-
-# Run internal benchmark (20 iterations, ~25 min)
-npm run benchmark
-
-# Run publishable benchmark (50 iterations, ~1 hr)
-npm run benchmark:publish
-```
-
-## Usage
-
-```bash
-# Full run — all 8 provider configs, all 25 prompts
-node latency-benchmark.js
-
-# Specific providers only
+# Latency benchmark
 node latency-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
 
-# Specific prompts only
-node latency-benchmark.js --prompts 1,2,3
-
-# Publish mode (50 iterations, 5 warmup)
-node latency-benchmark.js --mode publish
-
-# Top up to 50 iterations for a provider
-node latency-benchmark.js --target 50 --providers deepgram-aura2
+# WER benchmark
+node wer-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5 --compare llm-haiku
 ```
 
-## Output
+## Latency Benchmark
 
-Each run creates a timestamped directory under `results/`:
+```bash
+node latency-benchmark.js --providers deepgram-aura2       # Specific providers
+node latency-benchmark.js --all                            # All providers
+node latency-benchmark.js --all --runs 50                  # 50 runs per prompt
+node latency-benchmark.js --providers deepgram-aura2 --prompts 1,2,3  # Specific prompts
+```
 
-| File | Description |
-|---|---|
-| `raw.csv` | Every individual measurement |
-| `summary.csv` | Aggregated stats per provider (mean, median, p95, p99, stdev) |
-| `summary.md` | Formatted ranking tables |
+Default: 20 runs per prompt (18 kept, 2 warmup). Auto-skips providers that already have enough data. All results accumulate in `results/latency-raw.csv`.
 
-## Self-Hosted / Internal Deepgram
+## WER Benchmark
 
-To benchmark a self-hosted Deepgram instance, set the base URL in `.env`:
+```bash
+node wer-benchmark.js --providers deepgram-aura2 --compare llm-haiku
+node wer-benchmark.js --all --compare llm-haiku
+node wer-benchmark.js --providers deepgram-aura2 --prompts 22,46 --compare llm-haiku
+```
+
+Default: 3 iterations per prompt. Uses Deepgram Nova-3 for STT and Claude Haiku for pronunciation evaluation. Results accumulate in `results-wer/wer-raw.csv`. Audio files for mismatches saved in `results-wer/audio/` organized by category/subcategory/prompt.
+
+## Metrics
+
+### Latency
+- **TTFA (Time to First Audio)** — milliseconds from request to first audio chunk
+
+### WER
+- **WER (Word Error Rate)** — percentage of words mispronounced, averaged across comparisons
+- **PER (Pronunciation Error Rate)** — percentage of comparisons with at least one error
+- **Critical PER** — percentage of comparisons with wrong value or dropped content
+
+See [docs/wer-metrics.md](docs/wer-metrics.md) for detailed metric definitions and severity levels.
+
+## Self-Hosted Deepgram
+
+Set `DEEPGRAM_BASE_URL` in `.env` to benchmark a self-hosted instance:
 
 ```
 DEEPGRAM_BASE_URL=wss://your-internal-instance.deepgram.com/v1/speak
 ```
 
-If not set, defaults to the public Deepgram API. All other flags work the same:
-
-```bash
-node latency-benchmark.js --providers deepgram-aura2
-```
-
-## Metrics
-
-- **TTFA (Time to First Audio)** — milliseconds from request to first audio chunk. What users perceive as latency.
-- **RTF (Real-Time Factor)** — total generation time / audio duration. Lower = faster. An RTF of 0.5 means 2x real-time.
-
 ## Methodology
 
-See [METHODOLOGY.md](METHODOLOGY.md) for full details on test environment, provider configurations, test corpus, and statistical approach.
+See [METHODOLOGY.md](METHODOLOGY.md) for test environment, provider configurations, and statistical approach. See [docs/normalization-issues.md](docs/normalization-issues.md) for why we use LLM comparison instead of rule-based normalization.
 
-## Test Corpus
+## Test Corpora
 
-25 prompts across 8 categories: short/medium/long conversational, customer service, IVR, alphanumeric (order IDs, tracking numbers), mixed, and casual chat. See [prompts.js](prompts.js) for the full list.
+- **Latency**: 25 prompts across 8 categories. See [prompts.js](prompts.js).
+- **WER**: 80 prompts across 13 subcategories (conversational, identifiers, formatted entities, mixed). See [prompts-wer.js](prompts-wer.js).
