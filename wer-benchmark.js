@@ -4,15 +4,15 @@
  * Measures pronunciation accuracy: Text → TTS → STT → Compare
  *
  * Comparison methods:
- *   --compare normalization  # Rule-based text normalization (Coval-style)
- *   --compare llm-haiku      # Claude Haiku comparison
- *   --compare llm-gpt        # GPT-4o-mini comparison
- *   --compare all             # Run all three (for methodology validation)
- *
  * Usage:
- *   node wer-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5 --compare llm-haiku
- *   node wer-benchmark.js --all --compare all    # Full run, all comparison methods
- *   node wer-benchmark.js --providers deepgram-aura2 --prompts 16,17,18 --compare all  # Test subset
+ *   node wer-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
+ *   node wer-benchmark.js --all                           # All providers
+ *   node wer-benchmark.js --all --runs 5                  # 5 runs per prompt
+ *   node wer-benchmark.js --providers deepgram-aura2 --prompts 22,46
+ *   node wer-benchmark.js --all --compare all             # All comparison methods (validation)
+ *
+ * Default: 3 runs per prompt, Haiku comparison. Auto-skips completed providers.
+ * All results accumulate in results-wer/wer-raw.csv.
  */
 require('dotenv').config();
 
@@ -34,7 +34,7 @@ const providerFilter = getArg('providers', null)?.split(',');
 const runAll = args.includes('--all');
 const promptFilter = getArg('prompts', null)?.split(',').map(Number);
 const compareMethod = getArg('compare', 'llm-haiku');
-const ITERATIONS = parseInt(getArg('iterations', '3'));
+const RUNS = parseInt(getArg('runs', '3'));
 const DELAY_MS = 500;
 
 if (!providerFilter && !runAll) {
@@ -252,12 +252,6 @@ async function run() {
     : [compareMethod];
 
   log(`TTS WER Benchmark`);
-  log(`${activeConfigs.length} providers × ${activePrompts.length} prompts × ${ITERATIONS} iterations`);
-  log(`Comparison: ${methods.join(', ')}`);
-  log(`STT: Deepgram Nova-3`);
-  log(`Output: ${outputDir}`);
-  console.log('');
-
   // CSV header
   const csvPath = path.join(outputDir, 'wer-raw.csv');
   const csvHeaders = 'provider,provider_label,prompt_id,category,subcategory,iteration,original,transcript,compare_method,match,word_accuracy,mismatched_words,notes,error,timestamp\n';
@@ -265,11 +259,54 @@ async function run() {
     fs.writeFileSync(csvPath, csvHeaders);
   }
 
+  // Calculate runs needed per provider based on existing data
+  const perProviderRuns = {};
+  if (fs.existsSync(csvPath)) {
+    const existingLines = fs.readFileSync(csvPath, 'utf-8').trim().split('\n').slice(1);
+    const counts = {}; // provider__promptId -> count
+    for (const line of existingLines) {
+      const parts = []; let current = '', inQ = false;
+      for (const ch of line) { if (ch === '"') { inQ = !inQ; continue; } if (ch === ',' && !inQ) { parts.push(current); current = ''; continue; } current += ch; }
+      parts.push(current);
+      if (parts[13]) continue; // skip errors
+      const key = parts[0] + '__' + parts[2];
+      if (!counts[key]) counts[key] = 0;
+      counts[key]++;
+    }
+    for (const config of activeConfigs) {
+      // Find min runs across all prompts for this provider
+      let minRuns = Infinity;
+      for (const prompt of activePrompts) {
+        const have = counts[config.id + '__' + prompt.id] || 0;
+        if (have < minRuns) minRuns = have;
+      }
+      if (minRuns === Infinity) minRuns = 0;
+      const need = Math.max(0, RUNS - minRuns);
+      perProviderRuns[config.id] = need;
+      if (minRuns > 0) {
+        log(`${config.label}: have ${minRuns} runs, need ${need} more`);
+      }
+    }
+  }
+
+  log(`TTS WER Benchmark`);
+  log(`${RUNS} runs per prompt`);
+  log(`${activeConfigs.length} providers × ${activePrompts.length} prompts`);
+  log(`Comparison: ${methods.join(', ')}`);
+  log(`STT: Deepgram Nova-3`);
+  log(`Output: ${outputDir}`);
+  console.log('');
+
   for (const config of activeConfigs) {
-    log(`▸ ${config.label}`);
+    const runsNeeded = perProviderRuns[config.id] !== undefined ? perProviderRuns[config.id] : RUNS;
+    if (runsNeeded === 0) {
+      log(`▸ ${config.label} — already has ${RUNS} runs, skipping`);
+      continue;
+    }
+    log(`▸ ${config.label}` + (runsNeeded !== RUNS ? ` (${runsNeeded} more needed)` : ''));
 
     for (const prompt of activePrompts) {
-      for (let i = 1; i <= ITERATIONS; i++) {
+      for (let i = 1; i <= runsNeeded; i++) {
         let transcript = null;
         let error = null;
         let audioBuffer = null;
@@ -332,7 +369,7 @@ async function run() {
 
             const status = comparison.match ? '✓' : '✗';
             const accuracy = comparison.word_accuracy ? (comparison.word_accuracy * 100).toFixed(0) + '%' : '?';
-            console.log(`  [${i}/${ITERATIONS}] #${prompt.id} ${method}: ${status} ${accuracy}${comparison.mismatched_words?.length ? ' — ' + comparison.mismatched_words.length + ' mismatches' : ''}`);
+            console.log(`  [${i}/${runsNeeded}] #${prompt.id} ${method}: ${status} ${accuracy}${comparison.mismatched_words?.length ? ' — ' + comparison.mismatched_words.length + ' mismatches' : ''}`);
 
             // Save audio with hierarchical folder structure
             if (audioBuffer) {
@@ -379,7 +416,7 @@ async function run() {
             new Date().toISOString(),
           ].join(',');
           fs.appendFileSync(csvPath, csvLine + '\n');
-          console.log(`  [${i}/${ITERATIONS}] #${prompt.id} — ERROR: ${error}`);
+          console.log(`  [${i}/${runsNeeded}] #${prompt.id} — ERROR: ${error}`);
         }
 
         await sleep(DELAY_MS);
@@ -452,7 +489,7 @@ function generateSummary(csvPath, outDir) {
 
   let md = `# TTS WER Benchmark Results\n\n`;
   md += `**Date:** ${new Date().toISOString().slice(0, 10)}\n`;
-  md += `**Prompts:** ${prompts.length} | **Iterations:** ${ITERATIONS}\n`;
+  md += `**Prompts:** ${prompts.length} | **Runs:** ${RUNS}\n`;
   md += `**STT:** Deepgram Nova-3 | **Comparison:** ${compareMethod}\n\n`;
 
   md += `## Overall Word Accuracy\n\n`;
