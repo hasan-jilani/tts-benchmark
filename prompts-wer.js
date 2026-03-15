@@ -10,7 +10,7 @@
  *   Mid level (3 groups within alphanumeric):
  *     - identifiers (30) — codes, IDs, tracking numbers, VINs, serials, plates
  *     - formatted-entities (20) — currency, addresses, dates, numbers
- *     - real-world-scenarios (15) — conversational with embedded alphanumeric
+ *     - mixed (15) — conversational with embedded alphanumeric
  *
  *   Bottom level (13 subcategories) — see individual prompts
  */
@@ -102,19 +102,19 @@ module.exports = [
   { id: 65, category: 'formatted-entities', subcategory: 'number', text: "Your account number is 4479218503." },
 
   // === MIXED (15) — conversational with embedded structured data ===
-  { id: 66, category: 'real-world-scenarios', subcategory: 'order+tracking', text: "Your order #ORD-24589 shipped via UPS tracking 1Z999AA1234567890 and will arrive between 2:30 PM - 4:45 PM tomorrow." },
-  { id: 67, category: 'real-world-scenarios', subcategory: 'order+tracking', text: "Order ORD-X7K9 ships via UPS 1Z999AA1234567890, confirmation A2B4C6." },
-  { id: 68, category: 'real-world-scenarios', subcategory: 'serial+model', text: "Serial SN-K7M9P2X4, model MDL-2024-A." },
-  { id: 69, category: 'real-world-scenarios', subcategory: 'account+ref', text: "Account A7X9-B2K4-M8N2 with reference REF-2024-P7Q9." },
-  { id: 70, category: 'real-world-scenarios', subcategory: 'billing', text: "Your invoice shows a balance of $187.50, including the monthly fee plus tax." },
-  { id: 71, category: 'real-world-scenarios', subcategory: 'billing', text: "The $24.99 charge is for the premium support package you activated on January 22nd." },
-  { id: 72, category: 'real-world-scenarios', subcategory: 'billing', text: "Your auto-payment of $67.50 failed due to an expired card - would you like to update your payment method?" },
-  { id: 73, category: 'real-world-scenarios', subcategory: 'banking', text: "Your wire transfer of $1,247.50 to account ending in 5691 was processed at 2:15 PM." },
-  { id: 74, category: 'real-world-scenarios', subcategory: 'subscription', text: "Hi David, your premium subscription renews in 5 days at $29.99 - would you like to continue or explore other options?" },
-  { id: 75, category: 'real-world-scenarios', subcategory: 'sales', text: "For a 50-person team, I'd recommend our Business plan at $149 per month rather than Basic." },
-  { id: 76, category: 'real-world-scenarios', subcategory: 'sales', text: "Great timing! We're offering 20% off annual plans - that saves you $359.88 for the first year." },
-  { id: 77, category: 'real-world-scenarios', subcategory: 'security', text: "For security, please confirm the last 4 digits of the card ending in 8429 used for your recent purchase." },
-  { id: 78, category: 'real-world-scenarios', subcategory: 'security', text: "We detected 2 unusual login attempts from Chicago, Illinois yesterday around 11:30 PM." },
-  { id: 79, category: 'real-world-scenarios', subcategory: 'tech', text: "Your device is downloading update version 12.4.1 - about 250 MB remaining, roughly 8 minutes left." },
-  { id: 80, category: 'real-world-scenarios', subcategory: 'tech', text: "I'm seeing error code E-1047 here, which usually means - actually, let me guide you through the solution." },
+  { id: 66, category: 'mixed', subcategory: 'order+tracking', text: "Your order #ORD-24589 shipped via UPS tracking 1Z999AA1234567890 and will arrive between 2:30 PM - 4:45 PM tomorrow." },
+  { id: 67, category: 'mixed', subcategory: 'order+tracking', text: "Order ORD-X7K9 ships via UPS 1Z999AA1234567890, confirmation A2B4C6." },
+  { id: 68, category: 'mixed', subcategory: 'serial+model', text: "Serial SN-K7M9P2X4, model MDL-2024-A." },
+  { id: 69, category: 'mixed', subcategory: 'account+ref', text: "Account A7X9-B2K4-M8N2 with reference REF-2024-P7Q9." },
+  { id: 70, category: 'mixed', subcategory: 'billing', text: "Your invoice shows a balance of $187.50, including the monthly fee plus tax." },
+  { id: 71, category: 'mixed', subcategory: 'billing', text: "The $24.99 charge is for the premium support package you activated on January 22nd." },
+  { id: 72, category: 'mixed', subcategory: 'billing', text: "Your auto-payment of $67.50 failed due to an expired card - would you like to update your payment method?" },
+  { id: 73, category: 'mixed', subcategory: 'banking', text: "Your wire transfer of $1,247.50 to account ending in 5691 was processed at 2:15 PM." },
+  { id: 74, category: 'mixed', subcategory: 'subscription', text: "Hi David, your premium subscription renews in 5 days at $29.99 - would you like to continue or explore other options?" },
+  { id: 75, category: 'mixed', subcategory: 'sales', text: "For a 50-person team, I'd recommend our Business plan at $149 per month rather than Basic." },
+  { id: 76, category: 'mixed', subcategory: 'sales', text: "Great timing! We're offering 20% off annual plans - that saves you $359.88 for the first year." },
+  { id: 77, category: 'mixed', subcategory: 'security', text: "For security, please confirm the last 4 digits of the card ending in 8429 used for your recent purchase." },
+  { id: 78, category: 'mixed', subcategory: 'security', text: "We detected 2 unusual login attempts from Chicago, Illinois yesterday around 11:30 PM." },
+  { id: 79, category: 'mixed', subcategory: 'tech', text: "Your device is downloading update version 12.4.1 - about 250 MB remaining, roughly 8 minutes left." },
+  { id: 80, category: 'mixed', subcategory: 'tech', text: "I'm seeing error code E-1047 here, which usually means - actually, let me guide you through the solution." },
 ];
