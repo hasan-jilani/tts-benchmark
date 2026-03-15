@@ -133,6 +133,21 @@ async function run() {
       log(`▸ ${config.label} — already has ${KEPT} kept, skipping`);
       continue;
     }
+
+    // Preflight check — run 1 prompt to verify provider returns valid audio
+    log(`▸ ${config.label} — preflight check...`);
+    try {
+      const testResult = await config.fn(activePrompts[0].text, config.opts);
+      if (!testResult || !testResult.totalBytes || testResult.totalBytes === 0) {
+        throw new Error('TTS returned no audio bytes');
+      }
+      log(`  ✓ Preflight passed — ${testResult.totalBytes} bytes, TTFA: ${testResult.ttfa}ms`);
+    } catch (err) {
+      console.error(`  ✗ Preflight FAILED for ${config.label}: ${err.message}`);
+      console.error(`    Skipping this provider to avoid wasting API calls.`);
+      continue;
+    }
+
     const providerKept = providerIters - WARMUP;
     log(`▸ ${config.label}` + (perProviderIterations[config.id] !== undefined && perProviderIterations[config.id] !== ITERATIONS ? ` (${providerKept} kept + ${WARMUP} warmup)` : ''));
 
