@@ -53,9 +53,10 @@ function log(msg) {
 }
 
 // --- Deepgram STT ---
-async function transcribeAudio(audioBuffer, sampleRate = 24000) {
+async function transcribeAudio(audioBuffer, sampleRate = 24000, encoding = 'linear16') {
   return new Promise((resolve, reject) => {
-    const url = `https://api.deepgram.com/v1/listen?model=nova-3&encoding=linear16&sample_rate=${sampleRate}`;
+    const sttEncoding = encoding === 'pcm_f32le' ? 'linear32' : 'linear16';
+    const url = `https://api.deepgram.com/v1/listen?model=nova-3&encoding=${sttEncoding}&sample_rate=${sampleRate}`;
     const req = https.request(url, {
       method: 'POST',
       headers: {
@@ -303,6 +304,32 @@ async function run() {
       log(`▸ ${config.label} — already has ${RUNS} runs, skipping`);
       continue;
     }
+
+    // Preflight check — run 1 prompt through the full pipeline before committing
+    log(`▸ ${config.label} — preflight check...`);
+    try {
+      const testPrompt = activePrompts[0];
+      const testAudio = await generateAudio(config, testPrompt.text);
+      if (!testAudio || testAudio.length === 0) throw new Error('TTS returned no audio');
+
+      const { AUDIO_FORMATS } = require('./providers');
+      const providerKey = config.id.startsWith('deepgram') ? 'deepgram'
+        : config.id.startsWith('elevenlabs') ? 'elevenlabs'
+        : config.id.startsWith('cartesia') ? 'cartesia'
+        : config.id.startsWith('rime') ? 'rime'
+        : config.id.startsWith('openai') ? 'openai' : 'deepgram';
+      const preflightFmt = AUDIO_FORMATS[providerKey];
+
+      const testTranscript = await transcribeAudio(testAudio, preflightFmt.sampleRate, preflightFmt.encoding);
+      if (!testTranscript || testTranscript.trim().length === 0) throw new Error('STT returned empty transcript — likely encoding mismatch (provider encoding: ' + preflightFmt.encoding + ')');
+
+      log(`  ✓ Preflight passed — TTS: ${testAudio.length} bytes, STT: "${testTranscript.substring(0, 50)}..."`);
+    } catch (err) {
+      console.error(`  ✗ Preflight FAILED for ${config.label}: ${err.message}`);
+      console.error(`    Skipping this provider to avoid wasting API calls.`);
+      continue;
+    }
+
     log(`▸ ${config.label}` + (runsNeeded !== RUNS ? ` (${runsNeeded} more needed)` : ''));
 
     for (const prompt of activePrompts) {
@@ -328,7 +355,7 @@ async function run() {
               : config.id.startsWith('rime') ? 'rime'
               : config.id.startsWith('openai') ? 'openai' : 'deepgram';
             const fmt = AUDIO_FORMATS[providerKey];
-            transcript = await transcribeAudio(audioBuffer, fmt.sampleRate);
+            transcript = await transcribeAudio(audioBuffer, fmt.sampleRate, fmt.encoding);
           } catch (err) {
             error = `STT: ${err.message}`;
           }
