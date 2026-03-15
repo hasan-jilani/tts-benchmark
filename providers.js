@@ -31,6 +31,7 @@ function benchmarkDeepgram(text, { apiKey, voice = 'aura-2-thalia-en', baseUrl =
     const ws = new WebSocket(url, ['token', apiKey]);
 
     let startTime, ttfa = null, totalBytes = 0, done = false;
+    const audioChunks = [];
 
     ws.on('open', () => {
       startTime = Date.now();
@@ -42,18 +43,20 @@ function benchmarkDeepgram(text, { apiKey, voice = 'aura-2-thalia-en', baseUrl =
       if (isBinary) {
         if (ttfa === null) ttfa = Date.now() - startTime;
         totalBytes += data.length;
+        audioChunks.push(Buffer.from(data));
       } else {
         const msg = JSON.parse(data.toString());
         if (msg.type === 'Flushed' && !done) {
           done = true;
           const totalTime = Date.now() - startTime;
-          ws.terminate(); // force-close immediately, don't wait for server
+          ws.terminate();
           resolve({
             ttfa,
             totalTime,
             totalBytes,
             audioDuration: audioDurationMs(totalBytes, fmt),
             rtf: totalTime / audioDurationMs(totalBytes, fmt),
+            audioBuffer: Buffer.concat(audioChunks),
           });
         }
       }
@@ -70,6 +73,7 @@ function benchmarkDeepgram(text, { apiKey, voice = 'aura-2-thalia-en', baseUrl =
           totalBytes,
           audioDuration: audioDurationMs(totalBytes, fmt),
           rtf: totalTime / audioDurationMs(totalBytes, fmt),
+          audioBuffer: Buffer.concat(audioChunks),
         });
       }
     });
@@ -94,6 +98,7 @@ function benchmarkElevenLabs(text, { apiKey, voice = 'EXAVITQu4vr4xnSDxMaL', mod
 
     let startTime, ttfa = null, totalBytes = 0, done = false;
     let audioTimeout = null;
+    const audioChunks = [];
 
     function finish() {
       if (done) return;
@@ -107,6 +112,7 @@ function benchmarkElevenLabs(text, { apiKey, voice = 'EXAVITQu4vr4xnSDxMaL', mod
         totalBytes,
         audioDuration: audioDurationMs(totalBytes, fmt),
         rtf: totalTime / audioDurationMs(totalBytes, fmt),
+        audioBuffer: Buffer.concat(audioChunks),
       });
     }
 
@@ -131,6 +137,7 @@ function benchmarkElevenLabs(text, { apiKey, voice = 'EXAVITQu4vr4xnSDxMaL', mod
           const audioBytes = Buffer.from(msg.audio, 'base64');
           if (ttfa === null) ttfa = Date.now() - startTime;
           totalBytes += audioBytes.length;
+          audioChunks.push(audioBytes);
           // Reset timeout — wait for more chunks
           clearTimeout(audioTimeout);
           audioTimeout = setTimeout(finish, 1000);
@@ -159,6 +166,7 @@ function benchmarkOpenAI(text, { apiKey, model = 'gpt-4o-mini-tts', voice = 'all
 
     const startTime = Date.now();
     let ttfa = null, totalBytes = 0;
+    const audioChunks = [];
 
     const body = JSON.stringify({
       model,
@@ -185,6 +193,7 @@ function benchmarkOpenAI(text, { apiKey, model = 'gpt-4o-mini-tts', voice = 'all
       res.on('data', (chunk) => {
         if (ttfa === null) ttfa = Date.now() - startTime;
         totalBytes += chunk.length;
+        audioChunks.push(Buffer.from(chunk));
       });
 
       res.on('end', () => {
@@ -195,6 +204,7 @@ function benchmarkOpenAI(text, { apiKey, model = 'gpt-4o-mini-tts', voice = 'all
           totalBytes,
           audioDuration: audioDurationMs(totalBytes, fmt),
           rtf: totalTime / audioDurationMs(totalBytes, fmt),
+          audioBuffer: Buffer.concat(audioChunks),
         });
       });
 
@@ -284,6 +294,7 @@ function benchmarkCartesia(text, { apiKey, voice = 'f786b574-daa5-4673-aa0c-cbe3
 
     let startTime, ttfa = null, totalBytes = 0, done = false;
     let audioTimeout = null;
+    const audioChunks = [];
     const contextId = `bench_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
     function finish() {
@@ -298,6 +309,7 @@ function benchmarkCartesia(text, { apiKey, voice = 'f786b574-daa5-4673-aa0c-cbe3
         totalBytes,
         audioDuration: audioDurationMs(totalBytes, fmt),
         rtf: totalTime / audioDurationMs(totalBytes, fmt),
+        audioBuffer: Buffer.concat(audioChunks),
       });
     }
 
@@ -325,6 +337,7 @@ function benchmarkCartesia(text, { apiKey, voice = 'f786b574-daa5-4673-aa0c-cbe3
           const audioBytes = Buffer.from(msg.data, 'base64');
           if (ttfa === null) ttfa = Date.now() - startTime;
           totalBytes += audioBytes.length;
+          audioChunks.push(audioBytes);
           clearTimeout(audioTimeout);
           audioTimeout = setTimeout(finish, 1000);
         }
@@ -359,6 +372,7 @@ function benchmarkRime(text, { apiKey, speaker = 'astra', model = 'mistv2', noTe
     const ws = new WebSocket(url, { headers: { 'Authorization': `Bearer ${apiKey}` } });
 
     let startTime, ttfa = null, totalBytes = 0, done = false;
+    const audioChunks = [];
 
     ws.on('open', () => {
       startTime = Date.now();
@@ -370,6 +384,7 @@ function benchmarkRime(text, { apiKey, speaker = 'astra', model = 'mistv2', noTe
       if (isBinary) {
         if (ttfa === null) ttfa = Date.now() - startTime;
         totalBytes += data.length;
+        audioChunks.push(Buffer.from(data));
       }
     });
 
@@ -384,6 +399,7 @@ function benchmarkRime(text, { apiKey, speaker = 'astra', model = 'mistv2', noTe
           totalBytes,
           audioDuration: audioDurationMs(totalBytes, fmt),
           rtf: totalTime / audioDurationMs(totalBytes, fmt),
+          audioBuffer: Buffer.concat(audioChunks),
         });
       }
     });
