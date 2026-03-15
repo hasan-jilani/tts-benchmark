@@ -5,14 +5,14 @@
  * across Deepgram, ElevenLabs, Cartesia, and Rime.
  *
  * Usage:
- *   node latency-benchmark.js --all                              # Run all providers
  *   node latency-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
- *   node latency-benchmark.js --all --mode publish               # Publish mode (50 iterations)
+ *   node latency-benchmark.js --all                    # Run all providers
+ *   node latency-benchmark.js --all --runs 50          # 50 runs per prompt (48 kept, 2 warmup)
  *   node latency-benchmark.js --providers deepgram-aura2 --prompts 1,2,3
- *   node latency-benchmark.js --target 50 --providers deepgram-aura2  # auto-calculates remaining runs
- *   node latency-benchmark.js --iterations 30 --providers elevenlabs-flash-v2.5
  *
- * All results accumulate in results/latency-raw.csv. No --append flag needed.
+ * Default: 20 runs per prompt (18 kept, 2 warmup).
+ * Auto-skips providers that already have enough data in the CSV.
+ * All results accumulate in results/latency-raw.csv.
  */
 require('dotenv').config();
 
@@ -29,22 +29,12 @@ function getArg(name, fallback) {
   return idx !== -1 && args[idx + 1] ? args[idx + 1] : fallback;
 }
 
-const MODE = getArg('mode', 'internal');
-const iterationsOverride = getArg('iterations', null);
-const targetOverride = getArg('target', null);
+const runsOverride = getArg('runs', null);
 const WARMUP = 2;
-// --target: "I want 50 total kept runs" — auto-calculates how many more to run
-// --iterations: "Run exactly N more kept runs"
-// Neither: use mode defaults
-let ITERATIONS, KEPT;
-if (targetOverride || iterationsOverride) {
-  // Will be resolved per-provider in run() when --target + --append is used
-  ITERATIONS = iterationsOverride ? (parseInt(iterationsOverride) + WARMUP) : (MODE === 'publish' ? 50 : 20);
-  KEPT = ITERATIONS - WARMUP;
-} else {
-  ITERATIONS = MODE === 'publish' ? 50 : 20;
-  KEPT = ITERATIONS - WARMUP;
-}
+// --runs: total runs per prompt (including warmup). Default 20.
+// Kept = runs - warmup. Warmup is always 2.
+const ITERATIONS = runsOverride ? parseInt(runsOverride) : 20;
+const KEPT = ITERATIONS - WARMUP;
 const DELAY_BETWEEN_REQUESTS_MS = 500;  // avoid rate limiting
 const DELAY_BETWEEN_PROVIDERS_MS = 2000;
 
@@ -52,10 +42,9 @@ const DELAY_BETWEEN_PROVIDERS_MS = 2000;
 const providerFilter = getArg('providers', null)?.split(',');
 const runAll = args.includes('--all');
 const promptFilter = getArg('prompts', null)?.split(',').map(Number);
-const appendDir = getArg('append', null);
 
-// Require --providers or --all (unless appending with --target, which auto-selects)
-if (!providerFilter && !runAll && !targetOverride) {
+// Require --providers or --all
+if (!providerFilter && !runAll) {
   console.error('Error: specify --providers <list> or --all to run the benchmark.');
   console.error('');
   console.error('  node latency-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5');
@@ -115,23 +104,23 @@ async function run() {
     fs.writeFileSync(rawCsvPath, csvHeaders);
   }
 
-  // If --target is set, calculate how many more kept runs are needed per provider
+  // Calculate how many runs are needed per provider based on existing data
   let perProviderIterations = {};
-  if (targetOverride && fs.existsSync(rawCsvPath)) {
-    const target = parseInt(targetOverride);
+  if (fs.existsSync(rawCsvPath)) {
     const existing = parseExistingKeptCounts(rawCsvPath);
     for (const config of activeConfigs) {
       const have = existing[config.id] || 0;
-      const need = Math.max(0, target - have);
-      perProviderIterations[config.id] = need + WARMUP;
-      log(`${config.label}: have ${have} kept, need ${need} more (+ ${WARMUP} warmup)`);
+      const totalKeptWanted = ITERATIONS - WARMUP; // e.g., --runs 20 = 18 kept
+      const need = Math.max(0, totalKeptWanted - have);
+      perProviderIterations[config.id] = need > 0 ? need + WARMUP : 0;
+      if (have > 0) {
+        log(`${config.label}: have ${have} kept, need ${need} more`);
+      }
     }
   }
 
-  log(`TTS Benchmark — ${MODE} mode`);
-  if (!targetOverride) {
-    log(`${ITERATIONS} iterations per prompt (${WARMUP} warmup, ${KEPT} kept)`);
-  }
+  log(`TTS Latency Benchmark`);
+  log(`${ITERATIONS} runs per prompt (${WARMUP} warmup, ${KEPT} kept)`);
   log(`${activeConfigs.length} providers × ${activePrompts.length} prompts`);
   log(`Output: ${outputDir}`);
   console.log('');
@@ -139,12 +128,13 @@ async function run() {
   const allResults = [];
 
   for (const config of activeConfigs) {
-    const providerIters = perProviderIterations[config.id] || ITERATIONS;
-    if (targetOverride && providerIters <= WARMUP) {
-      log(`▸ ${config.label} — already at target, skipping`);
+    const providerIters = perProviderIterations[config.id] !== undefined ? perProviderIterations[config.id] : ITERATIONS;
+    if (providerIters === 0) {
+      log(`▸ ${config.label} — already has ${KEPT} kept, skipping`);
       continue;
     }
-    log(`▸ ${config.label}` + (targetOverride ? ` (${providerIters - WARMUP} kept + ${WARMUP} warmup)` : ''));
+    const providerKept = providerIters - WARMUP;
+    log(`▸ ${config.label}` + (perProviderIterations[config.id] !== undefined && perProviderIterations[config.id] !== ITERATIONS ? ` (${providerKept} kept + ${WARMUP} warmup)` : ''));
 
     for (const prompt of activePrompts) {
       for (let i = 1; i <= providerIters; i++) {
