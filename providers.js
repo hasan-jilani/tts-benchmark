@@ -10,6 +10,7 @@ const AUDIO_FORMATS = {
   elevenlabs:  { sampleRate: 22050, bytesPerSample: 2, encoding: 'pcm_22050' },
   cartesia:    { sampleRate: 24000, bytesPerSample: 4, encoding: 'pcm_f32le' },
   rime:        { sampleRate: 24000, bytesPerSample: 2, encoding: 'pcm' },
+  openai:      { sampleRate: 24000, bytesPerSample: 2, encoding: 'pcm' },
 };
 
 /**
@@ -145,6 +146,67 @@ function benchmarkElevenLabs(text, { apiKey, voice = 'EXAVITQu4vr4xnSDxMaL', mod
     ws.on('error', (err) => { if (!done) { done = true; reject(err); } });
     ws.on('close', () => finish());
     setTimeout(() => { if (!done) { done = true; ws.close(); reject(new Error('ElevenLabs timeout')); } }, 30000);
+  });
+}
+
+// ============================================================
+// OpenAI TTS (HTTP streaming)
+// ============================================================
+function benchmarkOpenAI(text, { apiKey, model = 'gpt-4o-mini-tts', voice = 'alloy' }) {
+  return new Promise((resolve, reject) => {
+    const fmt = AUDIO_FORMATS.openai;
+    const url = 'https://api.openai.com/v1/audio/speech';
+
+    const startTime = Date.now();
+    let ttfa = null, totalBytes = 0;
+
+    const body = JSON.stringify({
+      model,
+      voice,
+      input: text,
+      response_format: 'pcm',
+    });
+
+    const https = require('https');
+    const req = https.request(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+    }, (res) => {
+      if (res.statusCode !== 200) {
+        let errBody = '';
+        res.on('data', (chunk) => { errBody += chunk; });
+        res.on('end', () => reject(new Error(`OpenAI HTTP ${res.statusCode}: ${errBody.substring(0, 200)}`)));
+        return;
+      }
+
+      res.on('data', (chunk) => {
+        if (ttfa === null) ttfa = Date.now() - startTime;
+        totalBytes += chunk.length;
+      });
+
+      res.on('end', () => {
+        const totalTime = Date.now() - startTime;
+        resolve({
+          ttfa,
+          totalTime,
+          totalBytes,
+          audioDuration: audioDurationMs(totalBytes, fmt),
+          rtf: totalTime / audioDurationMs(totalBytes, fmt),
+        });
+      });
+
+      res.on('error', reject);
+    });
+
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+
+    // Safety timeout
+    setTimeout(() => { req.destroy(); reject(new Error('OpenAI HTTP timeout')); }, 30000);
   });
 }
 
@@ -395,6 +457,24 @@ function getConfigurations(env) {
       label: 'Rime Mist v2 (norm off)',
       fn: benchmarkRime,
       opts: { apiKey: env.RIME_API_KEY, noTextNormalization: true },
+    },
+    {
+      id: 'openai-gpt-4o-mini-tts',
+      label: 'OpenAI gpt-4o-mini-tts',
+      fn: benchmarkOpenAI,
+      opts: { apiKey: env.OPENAI_API_KEY, model: 'gpt-4o-mini-tts' },
+    },
+    {
+      id: 'openai-tts-1',
+      label: 'OpenAI tts-1',
+      fn: benchmarkOpenAI,
+      opts: { apiKey: env.OPENAI_API_KEY, model: 'tts-1' },
+    },
+    {
+      id: 'openai-tts-1-hd',
+      label: 'OpenAI tts-1-hd',
+      fn: benchmarkOpenAI,
+      opts: { apiKey: env.OPENAI_API_KEY, model: 'tts-1-hd' },
     },
   ];
 }
