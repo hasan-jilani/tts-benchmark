@@ -3,5 +3,8 @@ node_modules/
 results/
 .DS_Store
 open_ai.md
+open_ai_key.md
 gemini.md
+gemini_api_key.md
+*_key.md
 results-wer/
