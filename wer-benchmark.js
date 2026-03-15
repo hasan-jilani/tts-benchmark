@@ -42,9 +42,9 @@ if (!providerFilter && !runAll) {
   process.exit(1);
 }
 
-// --- Output directory ---
-const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-const outputDir = path.join(__dirname, 'results-wer', timestamp);
+// --- Output directory (single accumulating directory) ---
+const runTimestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+const outputDir = path.join(__dirname, 'results-wer');
 fs.mkdirSync(outputDir, { recursive: true });
 
 function log(msg) {
@@ -260,7 +260,10 @@ async function run() {
 
   // CSV header
   const csvPath = path.join(outputDir, 'wer-raw.csv');
-  fs.writeFileSync(csvPath, 'provider,provider_label,prompt_id,category,subcategory,iteration,original,transcript,compare_method,match,word_accuracy,mismatched_words,notes,error,timestamp\n');
+  const csvHeaders = 'provider,provider_label,prompt_id,category,subcategory,iteration,original,transcript,compare_method,match,word_accuracy,mismatched_words,notes,error,timestamp\n';
+  if (!fs.existsSync(csvPath)) {
+    fs.writeFileSync(csvPath, csvHeaders);
+  }
 
   for (const config of activeConfigs) {
     log(`▸ ${config.label}`);
@@ -351,7 +354,7 @@ async function run() {
               const promptDir = path.join(outputDir, 'audio', group, prompt.subcategory, `prompt${prompt.id}_${textSnippet}`);
               fs.mkdirSync(promptDir, { recursive: true });
 
-              const wavPath = path.join(promptDir, `${config.id}_iter${i}_${severity}.wav`);
+              const wavPath = path.join(promptDir, `${config.id}_iter${i}_${severity}_${runTimestamp}.wav`);
               writeWav(wavPath, audioBuffer, fmt.sampleRate, fmt.bytesPerSample * 8);
 
             }
