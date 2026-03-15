@@ -9,9 +9,10 @@
  *   node benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
  *   node benchmark.js --all --mode publish               # Publish mode (50 iterations)
  *   node benchmark.js --providers deepgram-aura2 --prompts 1,2,3
- *   node benchmark.js --append results/... --providers rime-mistv2-norm-on
- *   node benchmark.js --append results/... --iterations 30 --providers elevenlabs-flash-v2.5
- *   node benchmark.js --append results/... --target 50   # auto-calculates remaining runs
+ *   node benchmark.js --target 50 --providers deepgram-aura2  # auto-calculates remaining runs
+ *   node benchmark.js --iterations 30 --providers elevenlabs-flash-v2.5
+ *
+ * All results accumulate in results/latency-raw.csv. No --append flag needed.
  */
 require('dotenv').config();
 
@@ -54,7 +55,7 @@ const promptFilter = getArg('prompts', null)?.split(',').map(Number);
 const appendDir = getArg('append', null);
 
 // Require --providers or --all (unless appending with --target, which auto-selects)
-if (!providerFilter && !runAll && !appendDir) {
+if (!providerFilter && !runAll && !targetOverride) {
   console.error('Error: specify --providers <list> or --all to run the benchmark.');
   console.error('');
   console.error('  node benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5');
@@ -67,19 +68,9 @@ if (!providerFilter && !runAll && !appendDir) {
   process.exit(1);
 }
 
-// --- Output directory ---
-let outputDir;
-if (appendDir) {
-  // Append to existing results directory
-  outputDir = path.isAbsolute(appendDir) ? appendDir : path.join(__dirname, appendDir);
-  if (!fs.existsSync(outputDir)) {
-    console.error(`Append directory not found: ${outputDir}`);
-    process.exit(1);
-  }
-} else {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  outputDir = path.join(__dirname, 'results', timestamp);
-}
+// --- Output directory (single accumulating directory) ---
+const runTimestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+const outputDir = path.join(__dirname, 'results');
 fs.mkdirSync(outputDir, { recursive: true });
 
 // --- Logging ---
@@ -116,17 +107,17 @@ async function run() {
   }
 
   // Raw results CSV — append if file exists, otherwise create with headers
-  const rawCsvPath = path.join(outputDir, 'raw.csv');
+  const rawCsvPath = path.join(outputDir, 'latency-raw.csv');
   const csvHeaders = 'provider,provider_label,prompt_id,category,text_length,iteration,is_warmup,ttfa_ms,rtf,total_time_ms,audio_duration_ms,total_bytes,error,timestamp\n';
-  if (appendDir && fs.existsSync(rawCsvPath)) {
-    log(`Appending to existing raw.csv`);
+  if (fs.existsSync(rawCsvPath)) {
+    log(`Appending to existing latency-raw.csv`);
   } else {
     fs.writeFileSync(rawCsvPath, csvHeaders);
   }
 
-  // If --target is set with --append, calculate how many more kept runs are needed per provider
+  // If --target is set, calculate how many more kept runs are needed per provider
   let perProviderIterations = {};
-  if (targetOverride && appendDir && fs.existsSync(rawCsvPath)) {
+  if (targetOverride && fs.existsSync(rawCsvPath)) {
     const target = parseInt(targetOverride);
     const existing = parseExistingKeptCounts(rawCsvPath);
     for (const config of activeConfigs) {
@@ -232,14 +223,9 @@ async function run() {
     await sleep(DELAY_BETWEEN_PROVIDERS_MS);
   }
 
-  // --- Generate summary ---
-  // If appending, rebuild allResults from the full raw.csv so summary includes all providers
-  if (appendDir) {
-    const fullResults = parseRawCsv(rawCsvPath);
-    generateSummary(fullResults, outputDir);
-  } else {
-    generateSummary(allResults, outputDir);
-  }
+  // --- Generate summary from full CSV (includes all historical runs) ---
+  const fullResults = parseRawCsv(rawCsvPath);
+  generateSummary(fullResults, outputDir);
 
   log(`Done. Results in ${outputDir}`);
 }
