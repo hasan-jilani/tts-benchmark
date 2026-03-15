@@ -15,12 +15,12 @@ API keys for each provider you want to benchmark. No keys are included in this r
 
 | Key | Used by | Get it at |
 |---|---|---|
-| `DEEPGRAM_API_KEY` | Latency + WER (TTS and STT) | https://console.deepgram.com |
-| `ELEVENLABS_API_KEY` | Latency + WER | https://elevenlabs.io |
-| `CARTESIA_API_KEY` | Latency + WER | https://cartesia.ai |
-| `RIME_API_KEY` | Latency + WER | https://rime.ai |
-| `OPENAI_API_KEY` | Latency + WER | https://platform.openai.com |
-| `ANTHROPIC_API_KEY` | WER only (Haiku for pronunciation evaluation) | https://console.anthropic.com |
+| `DEEPGRAM_API_KEY` | Both (TTS provider + STT for WER) | https://console.deepgram.com |
+| `ELEVENLABS_API_KEY` | Both (TTS provider) | https://elevenlabs.io |
+| `CARTESIA_API_KEY` | Both (TTS provider) | https://cartesia.ai |
+| `RIME_API_KEY` | Both (TTS provider) | https://rime.ai |
+| `OPENAI_API_KEY` | Both (TTS provider) | https://platform.openai.com |
+| `ANTHROPIC_API_KEY` | WER only (Claude Haiku for pronunciation evaluation) | https://console.anthropic.com |
 
 You can run a subset of providers with `--providers` if you don't have keys for all of them.
 
