@@ -134,15 +134,26 @@ CRITICAL RULES — read carefully:
    - "$320,540" heard as "three hundred twenty thousand five hundred and fifty" → WRONG (540 became 550)
    - "4:45 PM" heard as "forty five pm" → WRONG (missing the "four" — should be "four forty five")
 
+ERROR SEVERITY LEVELS:
+
+- "critical" — Wrong value (different character/digit/word) or dropped content (missing characters/words). The customer would receive incorrect or incomplete information.
+  Examples: "D" heard as "B", "NMMJBQ" heard as "N M M" (dropped JBQ), "$540" heard as "$550"
+
+- "minor" — Wrong grouping or pacing. The same digits/characters are present but grouped differently than expected. The information is technically correct but could cause confusion.
+  Examples: "1234" heard as "twelve thirty four" (same digits, different grouping), "8429" heard as "eight thousand four hundred twenty nine" (same value, not digit-by-digit)
+
+- "none" — Everything pronounced correctly, or only format/case differences.
+
 Return ONLY this JSON:
 {
   "match": true/false,
   "word_accuracy": 0.0-1.0 (1.0 = perfect, 0.0 = completely wrong),
-  "mismatched_words": [{"original": "...", "heard": "...", "type": "substitution|insertion|deletion"}],
+  "severity": "critical|minor|none",
+  "mismatched_words": [{"original": "...", "heard": "...", "type": "substitution|insertion|deletion", "severity": "critical|minor"}],
   "notes": "one sentence explanation"
 }
 
-If everything was pronounced correctly, return match: true, word_accuracy: 1.0, mismatched_words: [].`;
+If everything was pronounced correctly, return match: true, word_accuracy: 1.0, severity: "none", mismatched_words: [].`;
 
   const userPrompt = `ORIGINAL: ${original}\nTRANSCRIPT: ${transcript}`;
 
@@ -251,6 +262,9 @@ async function run() {
   const csvPath = path.join(outputDir, 'wer-raw.csv');
   fs.writeFileSync(csvPath, 'provider,provider_label,prompt_id,category,subcategory,iteration,original,transcript,compare_method,match,word_accuracy,mismatched_words,notes,error,timestamp\n');
 
+  // Track audio files for comparison.txt generation
+  const audioComparisons = {};
+
   for (const config of activeConfigs) {
     log(`▸ ${config.label}`);
 
@@ -320,10 +334,9 @@ async function run() {
             const accuracy = comparison.word_accuracy ? (comparison.word_accuracy * 100).toFixed(0) + '%' : '?';
             console.log(`  [${i}/${ITERATIONS}] #${prompt.id} ${method}: ${status} ${accuracy}${comparison.mismatched_words?.length ? ' — ' + comparison.mismatched_words.length + ' mismatches' : ''}`);
 
-            // Save audio for mismatches so they can be spot-checked
-            if (!comparison.match && audioBuffer) {
-              const audioDir = path.join(outputDir, 'audio');
-              fs.mkdirSync(audioDir, { recursive: true });
+            // Save audio with hierarchical folder structure
+            if (audioBuffer) {
+              const severity = comparison.match ? 'MATCH' : (comparison.severity || 'CRITICAL').toUpperCase();
               const { AUDIO_FORMATS } = require('./providers');
               const providerKey = config.id.startsWith('deepgram') ? 'deepgram'
                 : config.id.startsWith('elevenlabs') ? 'elevenlabs'
@@ -331,8 +344,23 @@ async function run() {
                 : config.id.startsWith('rime') ? 'rime'
                 : config.id.startsWith('openai') ? 'openai' : 'deepgram';
               const fmt = AUDIO_FORMATS[providerKey];
-              const wavPath = path.join(audioDir, `${config.id}_prompt${prompt.id}_iter${i}.wav`);
+
+              // Build folder: group/subcategory/promptNN_text-snippet/
+              const group = prompt.category === 'conversational' ? 'conversational'
+                : prompt.category === 'identifiers' ? 'identifiers'
+                : prompt.category === 'formatted-entities' ? 'formatted-entities'
+                : 'mixed';
+              const textSnippet = prompt.text.substring(0, 30).replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+              const promptDir = path.join(outputDir, 'audio', group, prompt.subcategory, `prompt${prompt.id}_${textSnippet}`);
+              fs.mkdirSync(promptDir, { recursive: true });
+
+              const wavPath = path.join(promptDir, `${config.id}_iter${i}_${severity}.wav`);
               writeWav(wavPath, audioBuffer, fmt.sampleRate, fmt.bytesPerSample * 8);
+
+              // Track for comparison.txt generation
+              if (!audioComparisons[prompt.id]) audioComparisons[prompt.id] = { dir: promptDir, original: prompt.text, providers: {} };
+              if (!audioComparisons[prompt.id].providers[config.id]) audioComparisons[prompt.id].providers[config.id] = [];
+              audioComparisons[prompt.id].providers[config.id].push({ iter: i, severity, notes: comparison.notes || '' });
             }
           }
         } else {
@@ -363,6 +391,21 @@ async function run() {
     }
 
     log(`  ✓ ${config.label} complete\n`);
+  }
+
+  // Write comparison.txt files
+  for (const [promptId, comp] of Object.entries(audioComparisons)) {
+    const lines = [`Prompt #${promptId}: ${comp.original}`, ''];
+    for (const [provider, iters] of Object.entries(comp.providers)) {
+      const counts = { MATCH: 0, MINOR: 0, CRITICAL: 0 };
+      iters.forEach(it => counts[it.severity]++);
+      const summary = Object.entries(counts).filter(([_, n]) => n > 0).map(([s, n]) => `${n} ${s.toLowerCase()}`).join(', ');
+      lines.push(`${provider}: ${summary}`);
+      iters.forEach(it => {
+        if (it.severity !== 'MATCH') lines.push(`  iter${it.iter}: ${it.severity} — ${it.notes}`);
+      });
+    }
+    fs.writeFileSync(path.join(comp.dir, 'comparison.txt'), lines.join('\n') + '\n');
   }
 
   // Generate summary
