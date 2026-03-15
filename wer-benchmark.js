@@ -262,9 +262,6 @@ async function run() {
   const csvPath = path.join(outputDir, 'wer-raw.csv');
   fs.writeFileSync(csvPath, 'provider,provider_label,prompt_id,category,subcategory,iteration,original,transcript,compare_method,match,word_accuracy,mismatched_words,notes,error,timestamp\n');
 
-  // Track audio files for comparison.txt generation
-  const audioComparisons = {};
-
   for (const config of activeConfigs) {
     log(`▸ ${config.label}`);
 
@@ -357,10 +354,6 @@ async function run() {
               const wavPath = path.join(promptDir, `${config.id}_iter${i}_${severity}.wav`);
               writeWav(wavPath, audioBuffer, fmt.sampleRate, fmt.bytesPerSample * 8);
 
-              // Track for comparison.txt generation
-              if (!audioComparisons[prompt.id]) audioComparisons[prompt.id] = { dir: promptDir, original: prompt.text, providers: {} };
-              if (!audioComparisons[prompt.id].providers[config.id]) audioComparisons[prompt.id].providers[config.id] = [];
-              audioComparisons[prompt.id].providers[config.id].push({ iter: i, severity, notes: comparison.notes || '' });
             }
           }
         } else {
@@ -391,21 +384,6 @@ async function run() {
     }
 
     log(`  ✓ ${config.label} complete\n`);
-  }
-
-  // Write comparison.txt files
-  for (const [promptId, comp] of Object.entries(audioComparisons)) {
-    const lines = [`Prompt #${promptId}: ${comp.original}`, ''];
-    for (const [provider, iters] of Object.entries(comp.providers)) {
-      const counts = { MATCH: 0, MINOR: 0, CRITICAL: 0 };
-      iters.forEach(it => counts[it.severity]++);
-      const summary = Object.entries(counts).filter(([_, n]) => n > 0).map(([s, n]) => `${n} ${s.toLowerCase()}`).join(', ');
-      lines.push(`${provider}: ${summary}`);
-      iters.forEach(it => {
-        if (it.severity !== 'MATCH') lines.push(`  iter${it.iter}: ${it.severity} — ${it.notes}`);
-      });
-    }
-    fs.writeFileSync(path.join(comp.dir, 'comparison.txt'), lines.join('\n') + '\n');
   }
 
   // Generate summary
