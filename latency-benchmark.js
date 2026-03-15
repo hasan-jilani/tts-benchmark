@@ -5,12 +5,12 @@
  * across Deepgram, ElevenLabs, Cartesia, and Rime.
  *
  * Usage:
- *   node benchmark.js --all                              # Run all providers
- *   node benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
- *   node benchmark.js --all --mode publish               # Publish mode (50 iterations)
- *   node benchmark.js --providers deepgram-aura2 --prompts 1,2,3
- *   node benchmark.js --target 50 --providers deepgram-aura2  # auto-calculates remaining runs
- *   node benchmark.js --iterations 30 --providers elevenlabs-flash-v2.5
+ *   node latency-benchmark.js --all                              # Run all providers
+ *   node latency-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
+ *   node latency-benchmark.js --all --mode publish               # Publish mode (50 iterations)
+ *   node latency-benchmark.js --providers deepgram-aura2 --prompts 1,2,3
+ *   node latency-benchmark.js --target 50 --providers deepgram-aura2  # auto-calculates remaining runs
+ *   node latency-benchmark.js --iterations 30 --providers elevenlabs-flash-v2.5
  *
  * All results accumulate in results/latency-raw.csv. No --append flag needed.
  */
@@ -58,8 +58,8 @@ const appendDir = getArg('append', null);
 if (!providerFilter && !runAll && !targetOverride) {
   console.error('Error: specify --providers <list> or --all to run the benchmark.');
   console.error('');
-  console.error('  node benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5');
-  console.error('  node benchmark.js --all');
+  console.error('  node latency-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5');
+  console.error('  node latency-benchmark.js --all');
   console.error('');
   const { getConfigurations } = require('./providers');
   const configs = getConfigurations(process.env);

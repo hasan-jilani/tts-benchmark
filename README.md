@@ -55,8 +55,8 @@ node latency-benchmark.js --prompts 1,2,3
 # Publish mode (50 iterations, 5 warmup)
 node latency-benchmark.js --mode publish
 
-# Backfill a provider into an existing run
-node latency-benchmark.js --append results/2026-03-14T13-08-26 --providers rime-mistv2-norm-on
+# Top up to 50 iterations for a provider
+node latency-benchmark.js --target 50 --providers deepgram-aura2
 ```
 
 ## Output
