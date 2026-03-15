@@ -319,6 +319,21 @@ async function run() {
             const status = comparison.match ? '✓' : '✗';
             const accuracy = comparison.word_accuracy ? (comparison.word_accuracy * 100).toFixed(0) + '%' : '?';
             console.log(`  [${i}/${ITERATIONS}] #${prompt.id} ${method}: ${status} ${accuracy}${comparison.mismatched_words?.length ? ' — ' + comparison.mismatched_words.length + ' mismatches' : ''}`);
+
+            // Save audio for mismatches so they can be spot-checked
+            if (!comparison.match && audioBuffer) {
+              const audioDir = path.join(outputDir, 'audio');
+              fs.mkdirSync(audioDir, { recursive: true });
+              const { AUDIO_FORMATS } = require('./providers');
+              const providerKey = config.id.startsWith('deepgram') ? 'deepgram'
+                : config.id.startsWith('elevenlabs') ? 'elevenlabs'
+                : config.id.startsWith('cartesia') ? 'cartesia'
+                : config.id.startsWith('rime') ? 'rime'
+                : config.id.startsWith('openai') ? 'openai' : 'deepgram';
+              const fmt = AUDIO_FORMATS[providerKey];
+              const wavPath = path.join(audioDir, `${config.id}_prompt${prompt.id}_iter${i}.wav`);
+              writeWav(wavPath, audioBuffer, fmt.sampleRate, fmt.bytesPerSample * 8);
+            }
           }
         } else {
           // Log error row
@@ -353,6 +368,30 @@ async function run() {
   // Generate summary
   generateSummary(csvPath, outputDir);
   log(`Done. Results in ${outputDir}`);
+}
+
+// --- WAV file writer ---
+function writeWav(filePath, pcmBuffer, sampleRate, bitsPerSample = 16, numChannels = 1) {
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8);
+  const blockAlign = numChannels * (bitsPerSample / 8);
+  const dataSize = pcmBuffer.length;
+  const header = Buffer.alloc(44);
+
+  header.write('RIFF', 0);
+  header.writeUInt32LE(36 + dataSize, 4);
+  header.write('WAVE', 8);
+  header.write('fmt ', 12);
+  header.writeUInt32LE(16, 16); // PCM chunk size
+  header.writeUInt16LE(1, 20);  // PCM format
+  header.writeUInt16LE(numChannels, 22);
+  header.writeUInt32LE(sampleRate, 24);
+  header.writeUInt32LE(byteRate, 28);
+  header.writeUInt16LE(blockAlign, 32);
+  header.writeUInt16LE(bitsPerSample, 34);
+  header.write('data', 36);
+  header.writeUInt32LE(dataSize, 40);
+
+  fs.writeFileSync(filePath, Buffer.concat([header, pcmBuffer]));
 }
 
 // --- Generate audio and return raw buffer ---
