@@ -44,19 +44,19 @@ npm run benchmark:publish
 
 ```bash
 # Full run — all 8 provider configs, all 25 prompts
-node benchmark.js
+node latency-benchmark.js
 
 # Specific providers only
-node benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
+node latency-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
 
 # Specific prompts only
-node benchmark.js --prompts 1,2,3
+node latency-benchmark.js --prompts 1,2,3
 
 # Publish mode (50 iterations, 5 warmup)
-node benchmark.js --mode publish
+node latency-benchmark.js --mode publish
 
 # Backfill a provider into an existing run
-node benchmark.js --append results/2026-03-14T13-08-26 --providers rime-mistv2-norm-on
+node latency-benchmark.js --append results/2026-03-14T13-08-26 --providers rime-mistv2-norm-on
 ```
 
 ## Output
@@ -80,7 +80,7 @@ DEEPGRAM_BASE_URL=wss://your-internal-instance.deepgram.com/v1/speak
 If not set, defaults to the public Deepgram API. All other flags work the same:
 
 ```bash
-node benchmark.js --providers deepgram-aura2
+node latency-benchmark.js --providers deepgram-aura2
 ```
 
 ## Metrics

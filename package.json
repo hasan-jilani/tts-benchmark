@@ -2,10 +2,10 @@
   "name": "tts-benchmark",
   "version": "1.0.0",
   "description": "TTS latency benchmark — TTFA and RTF across Deepgram, ElevenLabs, Cartesia, Rime",
-  "main": "benchmark.js",
+  "main": "latency-benchmark.js",
   "scripts": {
-    "benchmark": "node benchmark.js",
-    "benchmark:publish": "node benchmark.js --mode publish"
+    "benchmark": "node latency-benchmark.js",
+    "benchmark:publish": "node latency-benchmark.js --mode publish"
   },
   "dependencies": {
     "ws": "^8.14.2",
