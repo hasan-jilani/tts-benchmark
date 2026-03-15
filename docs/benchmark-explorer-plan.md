@@ -18,47 +18,59 @@ Both benchmarks visualized:
 
 ## Key Views
 
-### 1. Hero Chart: TTFA vs WER Scatterplot
-The "no tradeoff" chart. Each provider is a dot.
-- X axis: TTFA (median, lower = faster)
-- Y axis: WER (lower = more accurate)
-- Deepgram sits in the bottom-left (fast + accurate)
-- ElevenLabs models form a diagonal (Flash: fast/inaccurate, Multilingual: accurate/slow)
-- Filter by content type to watch providers shift
-- Hover for details, click to drill down
+### Narrative Arc
+The prospect journey: fast → accurate → no tradeoff. Each section builds on the previous.
 
-### 2. TTFA Rankings
-Bar chart sorted by median TTFA.
+### 1. Hero: Latency Rankings
+Bar chart sorted by median TTFA. Deepgram clearly #1. Immediate visual impact.
+- Deepgram visually highlighted (color, label)
 - Filter by content type (conversational, alphanumeric, customer-service, etc.)
 - Toggle: median / mean / p95
-- Show stdev as error bars
-- Highlight Deepgram
+- Show stdev as error bars or confidence intervals
+- Answers: "How fast does it start speaking?"
 
-### 3. WER Deep Dive
-Bar chart by provider, filterable by category hierarchy.
-- Top level: Conversational vs Alphanumeric
-- Mid level: Identifiers / Formatted Entities / Mixed
-- Bottom level: 13 subcategories
+### 2. Latency Variation
+Box plots showing TTFA distribution per provider (like Coval's).
+- Shows consistency — Deepgram has tightest spread
+- p50, p95, outliers visible
+- Content type filter carries over
+
+### 3. Accuracy Rankings
+Bar chart by provider showing WER.
 - Toggle: WER / PER / Critical PER
-- Show severity breakdown (critical vs minor)
+- Filter by category hierarchy: Conversational > Alphanumeric (Identifiers / Formatted Entities / Mixed)
+- Severity breakdown (critical vs minor) as stacked bars or toggle
+- Answers: "How accurately does it pronounce things?"
 
-### 4. Content Type Sensitivity
-Heatmap — providers as rows, content types as columns.
-- Color intensity = TTFA or WER
+### 4. Accuracy Deep Dive
+Drill into subcategories (13 subcategories).
+- Currency, tracking numbers, VINs, etc.
+- Shows where Flash falls apart (currency 73% critical PER)
+- Shows where Deepgram and Cartesia differ
+
+### 5. The Scatterplot: Latency vs Accuracy
+The "aha moment" — TTFA on X, WER on Y. Each provider is a dot.
+- Deepgram: bottom-left (fast + accurate)
+- Cartesia: slightly right, same height (slower, equally accurate)
+- ElevenLabs Flash: low X, high Y (fast but inaccurate)
+- ElevenLabs Multilingual/v3: high X, lower Y (accurate but slow)
+- Bubble size = optional third dimension (price? consistency?)
+- Filter by content type to watch providers shift
+- The payoff: prospect has already seen latency and accuracy separately. Now sees the combined picture confirms no tradeoff.
+
+### 6. Content Type Sensitivity Heatmap
+Providers as rows, content types as columns. Color = TTFA or WER.
 - Shows at a glance who struggles where
-- Deepgram's row should be uniformly fast (content-agnostic)
+- Deepgram's row uniformly green (content-agnostic)
+- Cartesia/ElevenLabs show red spots on alphanumeric
+- Toggle between latency heatmap and accuracy heatmap
 
-### 5. Provider Comparison
+### 7. Provider Comparison (optional/interactive)
 Select 2 providers for side-by-side comparison.
 - All metrics head-to-head
 - Content type breakdowns
 - "Switching from X to Deepgram" framing
 - Could include audio playback for WER mismatches
-
-### 6. Warmup Analysis (optional)
-Show cold start behavior per provider.
-- Warmup vs steady-state TTFA
-- Which providers have a cold start penalty
 
 ## Data Architecture
 
