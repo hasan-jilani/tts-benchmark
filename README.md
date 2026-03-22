@@ -75,11 +75,3 @@ All providers use WebSocket streaming except OpenAI and ElevenLabs v3 (HTTP stre
 ## Methodology
 
 See [docs/methodology.md](docs/methodology.md) for test environment, provider configurations, and statistical approach.
-
-## Self-Hosted Deepgram
-
-Set `DEEPGRAM_BASE_URL` in `.env` to benchmark a self-hosted instance:
-
-```
-DEEPGRAM_BASE_URL=wss://your-internal-instance.deepgram.com/v1/speak
-```
