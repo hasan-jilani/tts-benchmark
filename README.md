@@ -1,26 +1,18 @@
-# TTS Benchmark
+# TTS Latency Benchmark
 
-Latency and pronunciation accuracy benchmarks for Text-to-Speech providers across Deepgram, ElevenLabs, Cartesia, Rime, and OpenAI.
-
-## Two Benchmarks
-
-| Benchmark | Script | What it measures |
-|---|---|---|
-| **Latency** | `latency-benchmark.js` | TTFA (Time to First Audio) — how fast audio starts |
-| **WER** | `wer-benchmark.js` | Pronunciation accuracy — does the TTS say the words correctly |
+Measures TTFA (Time to First Audio) and RTF (Real-Time Factor) for Text-to-Speech providers: Deepgram, ElevenLabs, Cartesia, Rime, and OpenAI.
 
 ## Prerequisites
 
 API keys for each provider you want to benchmark. No keys are included in this repo.
 
-| Key | Used by | Get it at |
-|---|---|---|
-| `DEEPGRAM_API_KEY` | Both (TTS provider + STT for WER) | https://console.deepgram.com |
-| `ELEVENLABS_API_KEY` | Both (TTS provider) | https://elevenlabs.io |
-| `CARTESIA_API_KEY` | Both (TTS provider) | https://cartesia.ai |
-| `RIME_API_KEY` | Both (TTS provider) | https://rime.ai |
-| `OPENAI_API_KEY` | Both (TTS provider) | https://platform.openai.com |
-| `ANTHROPIC_API_KEY` | WER only (Claude Haiku for pronunciation evaluation) | https://console.anthropic.com |
+| Key | Get it at |
+|---|---|
+| `DEEPGRAM_API_KEY` | https://console.deepgram.com |
+| `ELEVENLABS_API_KEY` | https://elevenlabs.io |
+| `CARTESIA_API_KEY` | https://cartesia.ai |
+| `RIME_API_KEY` | https://rime.ai |
+| `OPENAI_API_KEY` | https://platform.openai.com |
 
 You can run a subset of providers with `--providers` if you don't have keys for all of them.
 
@@ -30,45 +22,59 @@ You can run a subset of providers with `--providers` if you don't have keys for 
 npm install
 cp .env.example .env   # Add your API keys
 
-# Latency benchmark
 node latency-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
-
-# WER benchmark
-node wer-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5 --compare llm-haiku
-```
-
-## Latency Benchmark
-
-```bash
-node latency-benchmark.js --providers deepgram-aura2       # Specific providers
 node latency-benchmark.js --all                            # All providers
 node latency-benchmark.js --all --runs 50                  # 50 runs per prompt
 node latency-benchmark.js --providers deepgram-aura2 --prompts 1,2,3  # Specific prompts
+node latency-benchmark.js --retry-errors                   # Re-run all failed rows
+node latency-benchmark.js --summarize                      # Regenerate summary from CSVs
 ```
 
-Default: 20 runs per prompt (18 kept, 2 warmup). Auto-skips providers that already have enough data. All results accumulate in `results/latency-raw.csv`.
-
-## WER Benchmark
-
-```bash
-node wer-benchmark.js --providers deepgram-aura2 --compare llm-haiku
-node wer-benchmark.js --all --compare llm-haiku
-node wer-benchmark.js --providers deepgram-aura2 --prompts 22,46 --compare llm-haiku
-```
-
-Default: 3 iterations per prompt. Uses Deepgram Nova-3 for STT and Claude Haiku for pronunciation evaluation. Results accumulate in `results-wer/wer-raw.csv`. Audio files for mismatches saved in `results-wer/audio/` organized by category/subcategory/prompt.
+Default: 20 runs per prompt (18 kept, 2 warmup). Auto-skips providers that already have enough data. Results accumulate in per-provider CSVs under `results-latency/`.
 
 ## Metrics
 
-### Latency
-- **TTFA (Time to First Audio)** — milliseconds from request to first audio chunk
+- **TTFA (Time to First Audio)** — milliseconds from request to first audio chunk. Measures perceived latency.
+- **RTF (Real-Time Factor)** — `total_generation_time / audio_duration`. Values below 1.0 mean faster than real-time. Lower is better.
 
-### WER
-- **WER (Word Error Rate)** — percentage of words mispronounced, averaged across comparisons
-- **PER (Pronunciation Error Rate)** — percentage of comparisons with at least one error
-- **Critical PER** — percentage of comparisons with wrong value or dropped content
+## Providers
 
-See [docs/wer-metrics.md](docs/wer-metrics.md) for detailed metric definitions and severity levels.
+| ID | Provider | Model | Voice | Audio Format | Sample Rate |
+|---|---|---|---|---|---|
+| `deepgram-aura2` | Deepgram | Aura-2 | aura-2-thalia-en | Linear16 PCM | 24000 Hz |
+| `elevenlabs-flash-v2.5` | ElevenLabs | Flash v2.5 | Sarah | PCM | 22050 Hz |
+| `elevenlabs-v3` | ElevenLabs | v3 (HTTP) | Sarah | PCM | 22050 Hz |
+| `elevenlabs-multilingual-v2-norm-on` | ElevenLabs | Multilingual v2 | Sarah | PCM | 22050 Hz |
+| `elevenlabs-multilingual-v2-norm-off` | ElevenLabs | Multilingual v2 | Sarah | PCM | 22050 Hz |
+| `cartesia-sonic-turbo` | Cartesia | Sonic Turbo | — | PCM f32le | 24000 Hz |
+| `cartesia-sonic-3` | Cartesia | Sonic 3 | — | PCM f32le | 24000 Hz |
+| `cartesia-sonic-2` | Cartesia | Sonic 2 | — | PCM f32le | 24000 Hz |
+| `rime-mistv2-norm-on` | Rime | Mist v2 (norm on) | astra | PCM | 24000 Hz |
+| `rime-mistv2-norm-off` | Rime | Mist v2 (norm off) | astra | PCM | 24000 Hz |
+| `openai-gpt-4o-mini-tts` | OpenAI | gpt-4o-mini-tts | alloy | PCM | 24000 Hz |
+| `openai-tts-1` | OpenAI | tts-1 | alloy | PCM | 24000 Hz |
+| `openai-tts-1-hd` | OpenAI | tts-1-hd | alloy | PCM | 24000 Hz |
+
+All providers use WebSocket streaming except OpenAI and ElevenLabs v3 (HTTP streaming).
+
+## Test Corpus
+
+25 prompts across 8 categories designed to reflect real-world voice agent scenarios. See [prompts-latency.js](prompts-latency.js).
+
+| Category | Count | Purpose |
+|---|---|---|
+| Conversational (short) | 3 | Baseline latency on minimal text |
+| Conversational (medium) | 3 | Typical agent utterances |
+| Conversational (long) | 2 | Extended responses, sustained streaming |
+| Customer service | 3 | Core enterprise use case |
+| IVR | 3 | Menu prompts, balances, hold messages |
+| Alphanumeric | 6 | Order IDs, tracking numbers, serial numbers |
+| Mixed | 3 | Conversational text with embedded structured data |
+| Casual chat | 2 | Informal conversational tone |
+
+## Methodology
+
+See [docs/methodology.md](docs/methodology.md) for test environment, provider configurations, and statistical approach.
 
 ## Self-Hosted Deepgram
 
@@ -77,12 +83,3 @@ Set `DEEPGRAM_BASE_URL` in `.env` to benchmark a self-hosted instance:
 ```
 DEEPGRAM_BASE_URL=wss://your-internal-instance.deepgram.com/v1/speak
 ```
-
-## Methodology
-
-See [METHODOLOGY.md](METHODOLOGY.md) for test environment, provider configurations, and statistical approach. See [docs/normalization-issues.md](docs/normalization-issues.md) for why we use LLM comparison instead of rule-based normalization.
-
-## Test Corpora
-
-- **Latency**: 25 prompts across 8 categories. See [prompts.js](prompts.js).
-- **WER**: 80 prompts across 13 subcategories (conversational, identifiers, formatted entities, mixed). See [prompts-wer.js](prompts-wer.js).

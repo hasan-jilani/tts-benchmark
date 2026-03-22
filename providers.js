@@ -121,7 +121,7 @@ function benchmarkElevenLabs(text, { apiKey, voice = 'EXAVITQu4vr4xnSDxMaL', mod
       // Init with space + settings
       ws.send(JSON.stringify({
         text: ' ',
-        voice_settings: { speed: 0.8, stability: 0.75, similarity_boost: 0.75 },
+        voice_settings: { stability: 0.75, similarity_boost: 0.75 },
         'xi-api-key': apiKey,
       }));
       // Send actual text
@@ -234,7 +234,7 @@ function benchmarkElevenLabsHTTP(text, { apiKey, voice = 'EXAVITQu4vr4xnSDxMaL',
     const body = JSON.stringify({
       text,
       model_id: model,
-      voice_settings: { speed: 0.8, stability: 0.75, similarity_boost: 0.75 },
+      voice_settings: { stability: 0.75, similarity_boost: 0.75 },
     });
 
     const https = require('https');

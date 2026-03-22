@@ -149,7 +149,7 @@ For each provider, the following stats are calculated from kept iterations (warm
 
 ## Output Files
 
-Each benchmark run produces a timestamped directory under `results/`:
+Each benchmark run produces a timestamped directory under `results-latency/`:
 
 | File | Contents |
 |---|---|
