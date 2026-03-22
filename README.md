@@ -1,6 +1,6 @@
 # TTS Latency Benchmark
 
-Measures TTFA (Time to First Audio) and RTF (Real-Time Factor) for Text-to-Speech providers: Deepgram, ElevenLabs, Cartesia, Rime, and OpenAI.
+Measures TTFA (Time to First Audio) for Text-to-Speech providers: Deepgram, ElevenLabs, Cartesia, Rime, and OpenAI.
 
 ## Prerequisites
 
@@ -34,8 +34,7 @@ Default: 20 runs per prompt (18 kept, 2 warmup). Auto-skips providers that alrea
 
 ## Metrics
 
-- **TTFA (Time to First Audio)** — milliseconds from request to first audio chunk. Measures perceived latency.
-- **RTF (Real-Time Factor)** — `total_generation_time / audio_duration`. Values below 1.0 mean faster than real-time. Lower is better.
+- **TTFA (Time to First Audio)** — milliseconds from request to first audio chunk. Measures perceived latency — how long a user waits before hearing the voice start speaking.
 
 ## Providers
 

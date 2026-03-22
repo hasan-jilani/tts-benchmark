@@ -42,13 +42,6 @@ All tests run from the same machine, same network, same session unless otherwise
 - Captures perceived latency — how long a user waits before hearing the voice start speaking
 - Unit: milliseconds
 
-**RTF (Real-Time Factor)**
-- Calculated as: `total_generation_time / audio_duration`
-- `total_generation_time` = time from WebSocket open to stream completion (last chunk / done signal)
-- `audio_duration` = derived from total audio bytes received: `totalBytes / bytesPerSample / sampleRate`
-- Values below 1.0 mean faster than real-time (e.g., 0.5 = 2x real-time)
-- Lower is better
-
 ### Stream Completion Detection
 - **Deepgram:** `Flushed` JSON message from server
 - **ElevenLabs:** `isFinal: true` JSON field, or 1000ms timeout after last chunk
@@ -153,9 +146,9 @@ Each benchmark run produces a timestamped directory under `results-latency/`:
 
 | File | Contents |
 |---|---|
-| `raw.csv` | Every individual measurement (provider, prompt, iteration, TTFA, RTF, etc.) |
+| `raw.csv` | Every individual measurement (provider, prompt, iteration, TTFA, etc.) |
 | `summary.csv` | Aggregated stats per provider (mean, median, p95, stdev, etc.) |
-| `summary.md` | Formatted markdown with TTFA and RTF ranking tables |
+| `summary.md` | Formatted markdown with TTFA ranking table |
 
 ---
 
@@ -164,6 +157,5 @@ Each benchmark run produces a timestamped directory under `results-latency/`:
 1. **Single machine, single network** — results reflect latency from Raleigh NC over residential Google Fiber. Different regions will produce different absolute numbers.
 2. **No server-side measurement** — TTFA includes network round-trip time, not just model inference time. This is intentional: it measures what a real customer's application would experience.
 3. **WebSocket overhead varies by provider** — some providers have more handshake steps (e.g., ElevenLabs sends an init message before text). This is included in TTFA because it's part of the real-world experience.
-4. **Audio format differences** — providers use different sample rates and bit depths. RTF calculation accounts for this, but audio quality is not directly comparable from byte counts alone.
-5. **Single voice per provider** — results reflect one voice selection. Different voices may have different latency characteristics.
-6. **Residential network variability** — Wi-Fi latency can fluctuate. Sequential testing and multiple iterations mitigate but don't eliminate this.
+4. **Single voice per provider** — results reflect one voice selection. Different voices may have different latency characteristics.
+5. **Residential network variability** — Wi-Fi latency can fluctuate. Sequential testing and multiple iterations mitigate but don't eliminate this.

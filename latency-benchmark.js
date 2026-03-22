@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * TTS Latency Benchmark
- * Measures TTFA (Time to First Audio) and RTF (Real-Time Factor)
- * across Deepgram, ElevenLabs, Cartesia, and Rime.
+ * Measures TTFA (Time to First Audio)
+ * across Deepgram, ElevenLabs, Cartesia, Rime, and OpenAI.
  *
  * Usage:
  *   node latency-benchmark.js --providers deepgram-aura2,elevenlabs-flash-v2.5
@@ -387,7 +387,7 @@ async function run() {
         if (error) {
           console.log(`  [${i}/${providerIters}] prompt #${prompt.id} — ERROR: ${error}`);
         } else {
-          console.log(`  [${i}/${providerIters}] prompt #${prompt.id} — TTFA: ${row.ttfa?.toFixed(0)}ms | RTF: ${row.rtf?.toFixed(3)}`);
+          console.log(`  [${i}/${providerIters}] prompt #${prompt.id} — TTFA: ${row.ttfa?.toFixed(0)}ms`);
         }
 
         if (i < providerIters) {
@@ -424,17 +424,15 @@ function generateSummary() {
     const ttfa = parts[7] ? parseFloat(parts[7]) : null;
     const rtf = parts[8] ? parseFloat(parts[8]) : null;
 
-    if (!byProvider[provider]) byProvider[provider] = { label, ttfas: [], rtfs: [] };
+    if (!byProvider[provider]) byProvider[provider] = { label, ttfas: [] };
     if (ttfa !== null && ttfa > 0) byProvider[provider].ttfas.push(ttfa);
-    if (rtf !== null && isFinite(rtf)) byProvider[provider].rtfs.push(rtf);
   }
 
   const summaryRows = [];
 
   for (const [providerId, data] of Object.entries(byProvider)) {
     const ttfaStats = summarize(data.ttfas);
-    const rtfStats = summarize(data.rtfs);
-    summaryRows.push({ id: providerId, label: data.label, ttfa: ttfaStats, rtf: rtfStats });
+    summaryRows.push({ id: providerId, label: data.label, ttfa: ttfaStats });
   }
 
   // Summary markdown
@@ -451,14 +449,6 @@ function generateSummary() {
   md += `|---|---|---|---|---|---|---|---|---|---|\n`;
   summaryRows.forEach((r, i) => {
     md += `| ${i + 1} | ${r.label} | ${r.ttfa.mean.toFixed(0)}ms | ${r.ttfa.median.toFixed(0)}ms | ${r.ttfa.p95.toFixed(0)}ms | ${r.ttfa.p99.toFixed(0)}ms | ${r.ttfa.stdev.toFixed(0)}ms | ${r.ttfa.min.toFixed(0)}ms | ${r.ttfa.max.toFixed(0)}ms | ${r.ttfa.n} |\n`;
-  });
-
-  md += `\n## RTF Rankings (Real-Time Factor)\n\n`;
-  md += `| Rank | Provider | Mean | Median | p95 | p99 | Stdev | Min | Max | N |\n`;
-  md += `|---|---|---|---|---|---|---|---|---|---|\n`;
-  summaryRows.sort((a, b) => a.rtf.mean - b.rtf.mean);
-  summaryRows.forEach((r, i) => {
-    md += `| ${i + 1} | ${r.label} | ${r.rtf.mean.toFixed(3)} | ${r.rtf.median.toFixed(3)} | ${r.rtf.p95.toFixed(3)} | ${r.rtf.p99.toFixed(3)} | ${r.rtf.stdev.toFixed(3)} | ${r.rtf.min.toFixed(3)} | ${r.rtf.max.toFixed(3)} | ${r.rtf.n} |\n`;
   });
 
   fs.writeFileSync(mdPath, md);
